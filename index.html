@@ -105,6 +105,7 @@ tr:last-child td{border-bottom:none}
     <div class="tab" onclick="showTab('sm',this)">👔 SM View</div>
     <div class="tab" onclick="showTab('fos',this)">👤 FOS Detail</div>
     <div class="tab" onclick="showTab('dealers',this)">🚗 Dealer List</div>
+    <div class="tab" onclick="showTab('diag',this)">🔧 Diagnostics</div>
   </div>
   <div class="nav-right">
     <div class="live-pill"><div class="ldot"></div> Live</div>
@@ -334,6 +335,112 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- ═══ DIAGNOSTICS PAGE ═══ -->
+<div class="page" id="pg-diag">
+
+  <!-- Connection status banner -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="ch">
+      <span class="ct">🔌 Live Connection Status</span>
+      <button class="btn-ref" onclick="runDiagnostics()" style="background:#1e40af">↺ Test Connection</button>
+    </div>
+    <div class="cb" id="diag-status"></div>
+  </div>
+
+  <!-- URL being fetched -->
+  <div class="card">
+    <div class="ch"><span class="ct">🔗 Sheet URL Being Fetched</span><span class="bdg bdg-b">Live endpoint</span></div>
+    <div class="cb">
+      <div style="background:#0f172a;color:#94f3a1;padding:12px 14px;border-radius:6px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11px;word-break:break-all;line-height:1.6" id="diag-url"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-ref" onclick="window.open(document.getElementById('diag-url').textContent.split(' (')[0], '_blank')">↗ Open URL in new tab</button>
+        <button class="btn-ref" onclick="navigator.clipboard.writeText(document.getElementById('diag-url').textContent.split(' (')[0])" style="background:#475569">📋 Copy URL</button>
+      </div>
+      <div style="margin-top:10px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e">
+        💡 <b>Quick test:</b> Click "Open URL in new tab" — if it downloads/displays a CSV file, your sheet is publicly published correctly. If you see a 401/403 error or PDF, fix the publish format.
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats summary -->
+  <div class="g4" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi t"><div class="kl">HTTP Status</div><div class="kv" id="diag-http">—</div><div class="ks" id="diag-http-sub">Last fetch</div></div>
+    <div class="kpi p"><div class="kl">Bytes Received</div><div class="kv" id="diag-bytes">—</div><div class="ks">Raw response size</div></div>
+    <div class="kpi y"><div class="kl">Rows Parsed</div><div class="kv" id="diag-rows">—</div><div class="ks">Including header</div></div>
+    <div class="kpi g"><div class="kl">Data Rows</div><div class="kv" id="diag-data-rows">—</div><div class="ks">Valid dealer records</div></div>
+  </div>
+
+  <!-- Headers detected -->
+  <div class="card">
+    <div class="ch"><span class="ct">📋 Headers Detected in Sheet</span><span class="bdg bdg-b" id="diag-hdr-cnt">—</span></div>
+    <div class="cb">
+      <div class="tw" style="max-height:240px">
+        <table>
+          <thead><tr><th style="width:80px">Column</th><th style="width:80px">Letter</th><th>Header Name</th></tr></thead>
+          <tbody id="diag-hdr-bd"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column mapping -->
+  <div class="card">
+    <div class="ch"><span class="ct">🎯 Column Auto-Detection Map</span><span class="bdg bdg-b">Funnel fields</span></div>
+    <div class="cb">
+      <div class="tw" style="max-height:none">
+        <table>
+          <thead><tr>
+            <th style="width:140px">Dashboard Field</th>
+            <th style="width:90px">Sheet Column</th>
+            <th>Detected Header</th>
+            <th style="width:80px;text-align:center">Status</th>
+          </tr></thead>
+          <tbody id="diag-map-bd"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sample rows -->
+  <div class="card">
+    <div class="ch"><span class="ct">🔍 Sample Parsed Rows (First 5)</span><span class="bdg bdg-b">After cleaning</span></div>
+    <div class="cb">
+      <div class="tw" style="max-height:340px">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Dealer Name</th><th>Code</th><th>RSM</th><th>SM</th><th>FOS</th>
+            <th class="num">Lead</th><th class="num">Login</th><th class="num">Approval</th><th class="num">Disb</th>
+          </tr></thead>
+          <tbody id="diag-sample-bd"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aggregate totals (sanity check vs sheet) -->
+  <div class="card">
+    <div class="ch"><span class="ct">🧮 Aggregate Totals — Compare to Your Sheet</span><span class="bdg bdg-g">Sanity check</span></div>
+    <div class="cb">
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px">Sum these against your sheet's totals to confirm parsing is correct.</div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Metric</th><th class="num">Total</th><th>Notes</th></tr></thead>
+          <tbody id="diag-totals-bd"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw response peek -->
+  <div class="card">
+    <div class="ch"><span class="ct">📄 Raw CSV Response (First 1500 chars)</span><span class="bdg bdg-b">Debug</span></div>
+    <div class="cb">
+      <pre id="diag-raw" style="background:#0f172a;color:#e2e8f0;padding:14px;border-radius:6px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:11px;line-height:1.5;overflow-x:auto;max-height:280px;white-space:pre-wrap;word-break:break-all">—</pre>
+    </div>
+  </div>
+
+</div>
+
 <script>
 // ════════════════════════════════════════════════════════════════
 // LIVE DATA SOURCE — Reactivation Sheet (publish to web as CSV)
@@ -344,6 +451,20 @@ let DATA = [];          // cleaned rows (one object per dealer)
 let HEADERS = [];       // raw header row
 let COL_MAP = {};       // resolved column indices
 let charts = {};
+
+// Diagnostics state — captured on each fetch for the Diagnostics tab
+let DIAG = {
+  url: null,
+  httpStatus: null,
+  httpStatusText: null,
+  bytes: null,
+  rawText: null,
+  rowsParsed: null,
+  dataRows: null,
+  fetchedAt: null,
+  fetchError: null,
+  fetchMs: null
+};
 
 // ════════════════════════════════════════════════════════════════
 // CSV PARSER (RFC 4180 compliant)
@@ -417,11 +538,42 @@ function toCount(v) {
 // LOAD DATA from sheet → build DATA[] array
 // ════════════════════════════════════════════════════════════════
 async function loadData() {
-  const res = await fetch(SHEET_URL + "&t=" + Date.now());
-  if (!res.ok) throw new Error("Sheet HTTP " + res.status);
+  const fullUrl = SHEET_URL + "&t=" + Date.now();
+  const t0 = performance.now();
+  DIAG = {url: fullUrl, fetchedAt: new Date(), httpStatus: null, httpStatusText: null,
+          bytes: null, rawText: null, rowsParsed: null, dataRows: null, fetchError: null, fetchMs: null};
+
+  let res;
+  try {
+    res = await fetch(fullUrl);
+  } catch (e) {
+    DIAG.fetchError = 'Network error: ' + e.message;
+    DIAG.fetchMs = Math.round(performance.now() - t0);
+    renderDiagnostics();
+    throw new Error("Network: " + e.message);
+  }
+
+  DIAG.httpStatus = res.status;
+  DIAG.httpStatusText = res.statusText;
+  DIAG.fetchMs = Math.round(performance.now() - t0);
+
+  if (!res.ok) {
+    DIAG.fetchError = `HTTP ${res.status} ${res.statusText} — sheet not publicly accessible as CSV. Change publish format from PDF to CSV.`;
+    renderDiagnostics();
+    throw new Error("Sheet HTTP " + res.status + " — make sure publish format is CSV, not PDF");
+  }
+
   const text = await res.text();
+  DIAG.rawText = text;
+  DIAG.bytes = text.length;
   const rows = parseCSV(text);
-  if (rows.length < 2) throw new Error("Sheet has no data rows");
+  DIAG.rowsParsed = rows.length;
+
+  if (rows.length < 2) {
+    DIAG.fetchError = 'Sheet returned data but it has no rows. Did you publish the right tab?';
+    renderDiagnostics();
+    throw new Error("Sheet has no data rows");
+  }
 
   // Find header row — it's the first row that contains the word "RSM" or "SM" or "FOS"
   let headerIdx = 0;
@@ -462,10 +614,12 @@ async function loadData() {
   }
 
   DATA = out;
+  DIAG.dataRows = out.length;
 
   const now = new Date().toLocaleTimeString('en-IN', {timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true});
   document.getElementById('sync-txt').textContent = 'Synced ' + now;
   document.getElementById('error-box').innerHTML = buildColumnWarning();
+  renderDiagnostics();
   return true;
 }
 
@@ -914,6 +1068,200 @@ function drawChart(id, type, data, extraOpts) {
 }
 
 // ═══ NAV ═══
+// ════════════════════════════════════════════════════════════════
+// DIAGNOSTICS — show live connection status, headers, mapping, samples
+// ════════════════════════════════════════════════════════════════
+function colLetter(idx) {
+  // 0 → A, 1 → B, ..., 25 → Z, 26 → AA, 27 → AB ...
+  if (idx < 0) return '—';
+  let s = '';
+  let n = idx;
+  while (n >= 0) {
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26) - 1;
+  }
+  return s;
+}
+
+async function runDiagnostics() {
+  // Manually re-fetch and re-render
+  try {
+    await loadData();
+    setupFilters();
+    renderAll();
+  } catch (e) {
+    renderDiagnostics();  // still render so user sees the error
+  }
+}
+
+function renderDiagnostics() {
+  // ─── Connection status banner
+  const statusEl = document.getElementById('diag-status');
+  if (!statusEl) return;
+
+  const ok = DIAG.httpStatus === 200 && !DIAG.fetchError;
+  const isStale = DIAG.fetchedAt && (Date.now() - DIAG.fetchedAt.getTime()) > 6 * 60 * 1000;
+
+  if (ok && !isStale) {
+    statusEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;padding:8px 4px">
+        <div style="width:48px;height:48px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:24px">✅</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700;color:#166534;margin-bottom:2px">Connected — Sheet is live</div>
+          <div style="font-size:12px;color:#475569">
+            Last fetch: <b>${DIAG.fetchedAt.toLocaleString('en-IN', {timeZone:'Asia/Kolkata'})}</b> ·
+            Took <b>${DIAG.fetchMs}ms</b> ·
+            Auto-refreshes every 5 min
+          </div>
+        </div>
+      </div>`;
+  } else if (DIAG.fetchError) {
+    statusEl.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:14px;padding:8px 4px">
+        <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">❌</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700;color:#991b1b;margin-bottom:4px">Connection Failed</div>
+          <div style="font-size:12px;color:#475569;margin-bottom:8px">${escapeHTML(DIAG.fetchError)}</div>
+          <div style="font-size:11px;color:#64748b;background:#fffbeb;border:1px solid #fde68a;padding:8px 10px;border-radius:6px;line-height:1.6">
+            <b>Most common fix:</b> In Google Sheets → File → Share → Publish to web → change format dropdown from <b>"PDF"</b> to <b>"Comma-separated values (.csv)"</b> → click Publish.
+          </div>
+        </div>
+      </div>`;
+  } else {
+    statusEl.innerHTML = `<div style="padding:14px;text-align:center;color:#94a3b8">Click "Test Connection" to run diagnostics.</div>`;
+  }
+
+  // ─── URL display
+  document.getElementById('diag-url').textContent = DIAG.url || '—';
+
+  // ─── Stats KPIs
+  const httpEl = document.getElementById('diag-http');
+  if (DIAG.httpStatus) {
+    httpEl.textContent = DIAG.httpStatus;
+    httpEl.style.color = DIAG.httpStatus === 200 ? '#16a34a' : '#dc2626';
+    document.getElementById('diag-http-sub').textContent = DIAG.httpStatusText || '';
+  } else {
+    httpEl.textContent = '—';
+    httpEl.style.color = '';
+    document.getElementById('diag-http-sub').textContent = 'Not fetched yet';
+  }
+
+  document.getElementById('diag-bytes').textContent = DIAG.bytes != null ? DIAG.bytes.toLocaleString() : '—';
+  document.getElementById('diag-rows').textContent = DIAG.rowsParsed != null ? DIAG.rowsParsed.toLocaleString() : '—';
+  document.getElementById('diag-data-rows').textContent = DIAG.dataRows != null ? DIAG.dataRows.toLocaleString() : '—';
+
+  // ─── Headers list
+  const hdrBody = document.getElementById('diag-hdr-bd');
+  if (HEADERS && HEADERS.length) {
+    document.getElementById('diag-hdr-cnt').textContent = HEADERS.length + ' columns';
+    hdrBody.innerHTML = HEADERS.map((h, i) => `
+      <tr>
+        <td style="font-variant-numeric:tabular-nums">${i + 1}</td>
+        <td><code style="background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:11px">${colLetter(i)}</code></td>
+        <td style="font-weight:${h ? 500 : 400};color:${h ? '#1e293b' : '#cbd5e1'}">${h ? escapeHTML(h) : '<i>(empty)</i>'}</td>
+      </tr>`).join('');
+  } else {
+    document.getElementById('diag-hdr-cnt').textContent = '0 columns';
+    hdrBody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">No headers detected — fetch hasn't run or failed</td></tr>`;
+  }
+
+  // ─── Column map
+  const mapBody = document.getElementById('diag-map-bd');
+  const fields = [
+    {key:'rsm',        label:'🌐 RSM',          required:true},
+    {key:'sm',         label:'👔 SM',           required:true},
+    {key:'fos',        label:'👤 FOS',          required:true},
+    {key:'dealerName', label:'🚗 Dealer Name',  required:false},
+    {key:'dealerCode', label:'🔢 Dealer Code',  required:false},
+    {key:'lead',       label:'📋 Lead',         required:true},
+    {key:'login',      label:'🔵 Login',        required:true},
+    {key:'approval',   label:'⏳ Approval',     required:true},
+    {key:'disbursal',  label:'✅ Disbursal',    required:true},
+    {key:'channel',    label:'📊 Channel',      required:false},
+    {key:'city',       label:'🏙️ City',          required:false},
+    {key:'amount',     label:'💰 Disb Amount',  required:false},
+  ];
+  if (Object.keys(COL_MAP).length === 0) {
+    mapBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">Mapping not yet computed</td></tr>`;
+  } else {
+    mapBody.innerHTML = fields.map(f => {
+      const idx = COL_MAP[f.key];
+      const found = idx != null && idx >= 0;
+      const hdr = found ? HEADERS[idx] : '';
+      let statusBadge;
+      if (found) {
+        statusBadge = `<span class="pct p-hi">✓ Mapped</span>`;
+      } else if (f.required) {
+        statusBadge = `<span class="pct p-lo">✗ MISSING</span>`;
+      } else {
+        statusBadge = `<span class="pct p-no">— Optional</span>`;
+      }
+      return `<tr>
+        <td style="font-weight:500">${f.label}</td>
+        <td>${found ? `<code style="background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:11px">${colLetter(idx)}</code>` : '<span style="color:#cbd5e1">—</span>'}</td>
+        <td style="color:${found ? '#1e293b' : '#cbd5e1'}">${found ? escapeHTML(hdr) : '<i>not found</i>'}</td>
+        <td style="text-align:center">${statusBadge}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ─── Sample rows
+  const sampleBody = document.getElementById('diag-sample-bd');
+  if (DATA.length === 0) {
+    sampleBody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:20px">No data rows parsed yet</td></tr>`;
+  } else {
+    sampleBody.innerHTML = DATA.slice(0, 5).map((d, i) => `
+      <tr>
+        <td style="color:#94a3b8">${i + 1}</td>
+        <td style="font-weight:500">${escapeHTML(d.dealerName || '—')}</td>
+        <td style="font-family:monospace;font-size:10px;color:#64748b">${escapeHTML(d.dealerCode || '—')}</td>
+        <td style="font-size:11px">${escapeHTML(d.rsm || '—')}</td>
+        <td style="font-size:11px">${escapeHTML(d.sm || '—')}</td>
+        <td style="font-size:11px">${escapeHTML(d.fos || '—')}</td>
+        <td class="num">${d.lead}</td>
+        <td class="num">${d.login}</td>
+        <td class="num">${d.approval}</td>
+        <td class="num">${d.disb}</td>
+      </tr>`).join('');
+  }
+
+  // ─── Aggregate totals
+  const totalsBody = document.getElementById('diag-totals-bd');
+  if (DATA.length === 0) {
+    totalsBody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">No data to aggregate</td></tr>`;
+  } else {
+    const a = aggregate(DATA);
+    const uniqRSM = new Set(DATA.map(d => d.rsm).filter(Boolean)).size;
+    const uniqSM  = new Set(DATA.map(d => d.sm).filter(Boolean)).size;
+    const uniqFOS = new Set(DATA.map(d => d.fos).filter(Boolean)).size;
+    const rows = [
+      ['Total Dealer Rows',  a.dealers, 'After dropping empty rows'],
+      ['Unique RSMs',        uniqRSM,   ''],
+      ['Unique SMs',         uniqSM,    ''],
+      ['Unique FOS',         uniqFOS,   ''],
+      ['Sum of Leads',       a.lead,    'Funnel stage 1'],
+      ['Sum of Logins',      a.login,   'Funnel stage 2'],
+      ['Sum of Approvals',   a.approval,'Funnel stage 3'],
+      ['Sum of Disbursals',  a.disb,    'Funnel stage 4'],
+    ];
+    totalsBody.innerHTML = rows.map(([m,v,n]) => `
+      <tr>
+        <td style="font-weight:500">${m}</td>
+        <td class="num" style="font-weight:700;color:#1e40af">${fmt(v)}</td>
+        <td style="color:#94a3b8;font-size:11px">${n}</td>
+      </tr>`).join('');
+  }
+
+  // ─── Raw response peek
+  const rawEl = document.getElementById('diag-raw');
+  if (DIAG.rawText) {
+    const preview = DIAG.rawText.slice(0, 1500);
+    rawEl.textContent = preview + (DIAG.rawText.length > 1500 ? '\n\n... [' + (DIAG.rawText.length - 1500).toLocaleString() + ' more chars] ...' : '');
+  } else {
+    rawEl.textContent = '— No response captured —';
+  }
+}
+
 function showTab(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -930,8 +1278,9 @@ async function init() {
   } catch (err) {
     console.error(err);
     document.getElementById('error-box').innerHTML =
-      '<div class="err">⚠️ Failed to load data: ' + err.message + '. Make sure the sheet is published to web (File → Share → Publish to web → CSV).</div>';
-    document.getElementById('loading-overview').innerHTML = '<div style="color:#dc2626;padding:30px;text-align:center">Failed to load data — see error above.</div>';
+      '<div class="err">⚠️ Failed to load data: ' + err.message + '. Open the <b>🔧 Diagnostics</b> tab for details.</div>';
+    document.getElementById('loading-overview').innerHTML = '<div style="color:#dc2626;padding:30px;text-align:center">Failed to load data — open the <b>🔧 Diagnostics</b> tab to debug.</div>';
+    renderDiagnostics();
   }
 }
 init();
