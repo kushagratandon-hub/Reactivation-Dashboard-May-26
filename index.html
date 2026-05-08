@@ -491,31 +491,74 @@ function parseCSV(text) {
 
 // ════════════════════════════════════════════════════════════════
 // AUTO-DETECT COLUMN MAP from header row
-// Matches partial / case-insensitive header text to expected fields.
+// Smart logic: if Lead / Disbursal appear multiple times in the sheet
+// (e.g. an "old" + "new" funnel block), we anchor to the unambiguous
+// Login / Approval columns and pick the Lead immediately to Login's
+// LEFT and the Disbursal immediately to Approval's RIGHT — that's the
+// adjacent funnel block.
 // ════════════════════════════════════════════════════════════════
 function detectColumns(headers) {
   const lower = headers.map(h => (h || "").toLowerCase().trim());
-  const find = (...patterns) => {
+
+  const findAll = (pattern) => {
+    const m = [];
+    lower.forEach((h, i) => { if (h && pattern.test(h)) m.push(i); });
+    return m;
+  };
+  const findFirst = (...patterns) => {
     for (const p of patterns) {
-      const idx = lower.findIndex(h => p.test(h));
-      if (idx !== -1) return idx;
+      const m = findAll(p);
+      if (m.length) return m[0];
     }
     return -1;
   };
+
+  // Login + Approval are usually unambiguous — find them first as anchors.
+  const loginIdx    = findFirst(/^logins?$/, /^login\b/, /logged.?in/);
+  const approvalIdx = findFirst(/^approv/, /^approved/, /sanction/);
+
+  // Lead / Disbursal can appear twice. Anchor to login/approval positions.
+  const leadCandidates = findAll(/^leads?\b/);
+  const disbCandidates = findAll(/^disb/);
+
+  let leadIdx = -1, disbIdx = -1;
+  if (leadCandidates.length === 1) {
+    leadIdx = leadCandidates[0];
+  } else if (loginIdx >= 0 && leadCandidates.length) {
+    // Prefer the Lead column directly to the left of Login
+    const adjacent = leadCandidates.find(i => i === loginIdx - 1);
+    leadIdx = adjacent != null ? adjacent : leadCandidates[leadCandidates.length - 1];
+  } else if (leadCandidates.length) {
+    leadIdx = leadCandidates[leadCandidates.length - 1];
+  }
+
+  if (disbCandidates.length === 1) {
+    disbIdx = disbCandidates[0];
+  } else if (approvalIdx >= 0 && disbCandidates.length) {
+    // Prefer the Disbursal column directly to the right of Approval
+    const adjacent = disbCandidates.find(i => i === approvalIdx + 1);
+    disbIdx = adjacent != null ? adjacent : disbCandidates[disbCandidates.length - 1];
+  } else if (disbCandidates.length) {
+    disbIdx = disbCandidates[disbCandidates.length - 1];
+  }
+
   return {
-    rsm:        find(/^rsm$/, /\brsm\b/, /regional\s*sales/, /regional\s*manager/),
-    sm:         find(/^sm$/, /sales\s*manager/, /^sm\s/, /\bsm\b(?!.*rsm)/),
-    fos:        find(/^fos$/, /\bfos\b/, /field\s*officer/, /field\s*sales/),
-    dealerName: find(/dealer.*name/, /^name$/, /^dealer$/, /dealership/),
-    dealerCode: find(/dealer.*code/, /^code$/, /dealer.*id/),
-    channel:    find(/channel/, /segment/),
-    city:       find(/^city$/, /location/),
-    lead:       find(/^lead$/, /^leads$/, /lead\s*gen/, /lead\s*flag/, /^lead\s/),
-    login:      find(/^login$/, /^logins$/, /logged.*in/, /login\s*flag/, /^login\s/),
-    approval:   find(/^approv/, /^approved$/, /approval\s*flag/, /sanction/, /\bappr/),
-    disbursal:  find(/^disb/, /disbursed/, /disbursal/, /\bdisb/),
-    amount:     find(/disb.*amt/, /disb.*amount/, /amount/, /loan.*amt/),
-    date:       find(/^date$/, /lead.*date/, /created/),
+    // RSM / SM — anchor to start of header
+    rsm:        findFirst(/^rsm\b/, /regional\s*sales/, /regional\s*manager/),
+    sm:         findFirst(/^sm$/, /^sales\s*manager$/, /^sm\s/),
+    // FOS may have trailing comma "FOS," from sheet quirks
+    fos:        findFirst(/^fos[,\s]*$/, /^fos\b/, /field\s*officer/, /field\s*sales/),
+    // Dealer Name — handle "Deale Name" typo
+    dealerName: findFirst(/^dealer\s*name/, /^deale\s*name/, /dealership.*name/, /^name$/, /^dealer$/),
+    dealerCode: findFirst(/^dealer\s*code/, /dealer\s*id/, /^code$/),
+    channel:    findFirst(/^channel/, /segment/),
+    city:       findFirst(/dealer\s*city/, /^city$/, /location/),
+    lead:       leadIdx,
+    login:      loginIdx,
+    approval:   approvalIdx,
+    disbursal:  disbIdx,
+    amount:     findFirst(/disb.*amt/, /disb.*amount/, /^amount/, /loan.*amt/),
+    date:       findFirst(/^date$/, /lead.*date/, /created/),
   };
 }
 
@@ -547,10 +590,13 @@ async function loadData() {
   try {
     res = await fetch(fullUrl);
   } catch (e) {
-    DIAG.fetchError = 'Network error: ' + e.message;
+    const isFileProto = location.protocol === 'file:';
+    DIAG.fetchError = isFileProto
+      ? 'Browser blocked the fetch because this HTML file is opened directly from disk (file:// protocol). The CSV URL works in your browser address bar but fetch() is restricted on local files. Fix: serve this file from a local web server or host it on GitHub Pages — see Diagnostics tab for instructions.'
+      : 'Network error: ' + e.message + '. Most likely a CORS / proxy / firewall block. If this just published, also wait 60 seconds for Google Sheets to propagate.';
     DIAG.fetchMs = Math.round(performance.now() - t0);
     renderDiagnostics();
-    throw new Error("Network: " + e.message);
+    throw new Error(DIAG.fetchError);
   }
 
   DIAG.httpStatus = res.status;
@@ -585,8 +631,22 @@ async function loadData() {
   HEADERS = rows[headerIdx];
   COL_MAP = detectColumns(HEADERS);
 
+  // Skip "totals" rows just below the header — these often appear in DCF sheets
+  // and contain numbers in the funnel columns but no RSM/SM/FOS/dealer info.
+  // A row is treated as totals if it has no values in RSM, SM, FOS, dealer-name,
+  // or dealer-code columns but DOES have values in the funnel numeric columns.
+  let firstDataIdx = headerIdx + 1;
+  while (firstDataIdx < rows.length) {
+    const r = rows[firstDataIdx];
+    const get = idx => idx >= 0 ? (r[idx] || "").trim() : "";
+    const hasIdentity = get(COL_MAP.rsm) || get(COL_MAP.sm) || get(COL_MAP.fos)
+      || get(COL_MAP.dealerName) || get(COL_MAP.dealerCode);
+    if (hasIdentity) break;
+    firstDataIdx++;
+  }
+
   const out = [];
-  for (let i = headerIdx + 1; i < rows.length; i++) {
+  for (let i = firstDataIdx; i < rows.length; i++) {
     const r = rows[i];
     const get = idx => idx >= 0 ? (r[idx] || "").trim() : "";
 
@@ -1116,15 +1176,27 @@ function renderDiagnostics() {
         </div>
       </div>`;
   } else if (DIAG.fetchError) {
+    const isFileProto = location.protocol === 'file:';
     statusEl.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:14px;padding:8px 4px">
         <div style="width:48px;height:48px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">❌</div>
         <div style="flex:1">
           <div style="font-size:15px;font-weight:700;color:#991b1b;margin-bottom:4px">Connection Failed</div>
-          <div style="font-size:12px;color:#475569;margin-bottom:8px">${escapeHTML(DIAG.fetchError)}</div>
-          <div style="font-size:11px;color:#64748b;background:#fffbeb;border:1px solid #fde68a;padding:8px 10px;border-radius:6px;line-height:1.6">
-            <b>Most common fix:</b> In Google Sheets → File → Share → Publish to web → change format dropdown from <b>"PDF"</b> to <b>"Comma-separated values (.csv)"</b> → click Publish.
-          </div>
+          <div style="font-size:12px;color:#475569;margin-bottom:10px;line-height:1.55">${escapeHTML(DIAG.fetchError)}</div>
+          ${isFileProto ? `
+            <div style="font-size:12px;color:#1e293b;background:#eff6ff;border:1px solid #bfdbfe;padding:10px 12px;border-radius:6px;line-height:1.7">
+              <div style="font-weight:700;color:#1e40af;margin-bottom:6px">🔧 You're running this from <code style="background:#fff;padding:1px 5px;border-radius:3px">file://</code> — pick one fix:</div>
+              <div style="margin-bottom:8px"><b>Quick (60 sec):</b> open Terminal in this file's folder, run:
+                <div style="background:#0f172a;color:#86efac;padding:6px 10px;border-radius:4px;font-family:monospace;margin-top:4px;font-size:11px">python -m http.server 8000</div>
+                Then open <code style="background:#fff;padding:1px 5px;border-radius:3px">http://localhost:8000/reactivation_dashboard.html</code>
+              </div>
+              <div><b>Permanent:</b> push to GitHub, enable Pages, access via <code style="background:#fff;padding:1px 5px;border-radius:3px">https://username.github.io/repo/</code></div>
+            </div>
+          ` : `
+            <div style="font-size:11px;color:#64748b;background:#fffbeb;border:1px solid #fde68a;padding:8px 10px;border-radius:6px;line-height:1.6">
+              <b>Common fixes:</b> (1) make sure publish format is CSV, not PDF; (2) wait 60 sec for fresh publish to propagate; (3) check corporate firewall isn't blocking docs.google.com.
+            </div>
+          `}
         </div>
       </div>`;
   } else {
