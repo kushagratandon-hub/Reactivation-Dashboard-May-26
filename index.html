@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DCF | Reactivation Funnel Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#ffffff;color:#1a202c;font-size:13px}
+.nav{background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;position:sticky;top:0;z-index:200;box-shadow:0 1px 6px rgba(0,0,0,.07)}
+.nav-brand{padding:0 18px;height:50px;display:flex;align-items:center;gap:10px;background:#1e40af;flex-shrink:0}
+.nav-logo{width:28px;height:28px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#1e40af}
+.nav-title{font-size:13px;font-weight:700;color:#fff}
+.nav-tabs{display:flex;height:50px;overflow-x:auto}
+.tab{padding:0 16px;display:flex;align-items:center;gap:6px;cursor:pointer;border-bottom:3px solid transparent;font-size:12px;font-weight:500;color:#64748b;white-space:nowrap;transition:all .15s}
+.tab:hover{color:#1e40af;background:#f8faff}
+.tab.active{color:#1e40af;border-bottom-color:#1e40af;font-weight:600}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 14px;flex-shrink:0}
+.live-pill{display:flex;align-items:center;gap:5px;font-size:11px;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;padding:3px 9px}
+.ldot{width:6px;height:6px;border-radius:50%;background:#16a34a;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-txt{font-size:11px;color:#94a3b8}
+.btn-ref{background:#1e40af;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif}
+.btn-ref:disabled{opacity:.5;cursor:wait}
+.page{display:none;padding:16px 20px;max-width:1600px;margin:0 auto}
+.page.active{display:block}
+.fbar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.flabel{font-size:11px;color:#64748b;font-weight:500}
+select,input[type=text],input[type=date]{border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-family:Inter,sans-serif;font-size:12px;color:#1a202c;background:#fff;outline:none;min-width:115px}
+select:focus,input:focus{border-color:#1e40af;box-shadow:0 0 0 2px rgba(30,64,175,.1)}
+.fcount{margin-left:auto;font-size:11px;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:20px}
+.kgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:13px 15px;border-top:3px solid #1e40af;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.kpi.g{border-top-color:#16a34a}.kpi.o{border-top-color:#ea580c}.kpi.r{border-top-color:#dc2626}.kpi.p{border-top-color:#7c3aed}.kpi.y{border-top-color:#d97706}.kpi.t{border-top-color:#0891b2}
+.kl{font-size:10px;color:#64748b;font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.kv{font-size:22px;font-weight:700;color:#1a202c;line-height:1}
+.ks{font-size:10px;color:#94a3b8;margin-top:3px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.g31{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-bottom:12px}
+.ch{padding:11px 15px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;background:#fafbfc}
+.ct{font-size:12px;font-weight:600;color:#1e293b}
+.cb{padding:13px 15px}
+.bdg{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500}
+.bdg-b{background:#eff6ff;color:#1e40af}.bdg-r{background:#fef2f2;color:#dc2626}.bdg-g{background:#f0fdf4;color:#16a34a}.bdg-o{background:#fff7ed;color:#ea580c}
+.tw{overflow-x:auto;max-height:520px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;z-index:10}
+thead tr{background:#f8fafc}
+th{padding:9px 11px;text-align:left;font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;border-bottom:1px solid #e2e8f0}
+th.num{text-align:right}
+td{padding:8px 11px;border-bottom:1px solid #f1f5f9;white-space:nowrap;vertical-align:middle}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:#f8faff}
+tr:last-child td{border-bottom:none}
+.vb{display:inline-block;min-width:32px;text-align:center;padding:2px 8px;border-radius:5px;font-weight:700;font-size:12px}
+.v0{background:#fef2f2;color:#dc2626}.vl{background:#fff7ed;color:#ea580c}.vm{background:#fefce8;color:#a16207}.vg{background:#f0fdf4;color:#16a34a}.vh{background:#eff6ff;color:#1d4ed8}
+.pct{display:inline-block;padding:2px 7px;border-radius:5px;font-weight:600;font-size:11px;font-variant-numeric:tabular-nums}
+.p-hi{background:#dcfce7;color:#166534}
+.p-md{background:#fef3c7;color:#92400e}
+.p-lo{background:#fee2e2;color:#991b1b}
+.p-no{background:#f1f5f9;color:#94a3b8}
+
+/* Funnel visualization */
+.funnel-wrap{padding:8px 0}
+.funnel-stage{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.funnel-lbl{width:120px;font-size:12px;font-weight:600;color:#1e293b;display:flex;flex-direction:column;gap:2px}
+.funnel-lbl small{font-size:9px;font-weight:500;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+.funnel-bar{flex:1;height:32px;background:#f1f5f9;border-radius:6px;overflow:hidden;position:relative}
+.funnel-fill{height:100%;display:flex;align-items:center;padding:0 12px;color:#fff;font-weight:700;font-size:13px;border-radius:6px;transition:width 1s ease;justify-content:flex-end}
+.funnel-conv{width:80px;text-align:right;font-size:11px;font-weight:600}
+
+/* Bar chart for top performers */
+.br-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.br-name{width:130px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#475569;font-weight:500}
+.br-track{flex:1;height:10px;background:#f1f5f9;border-radius:5px;overflow:hidden}
+.br-fill{height:100%;border-radius:5px;transition:width 1s}
+.br-val{font-size:11px;color:#1e293b;width:40px;text-align:right;font-weight:600}
+
+.loading{display:flex;align-items:center;justify-content:center;padding:60px 40px;font-size:13px;color:#64748b}
+.spin{width:18px;height:18px;border:2px solid #e2e8f0;border-top-color:#1e40af;border-radius:50%;animation:sp 0.8s linear infinite;margin-right:10px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:12px 16px;border-radius:8px;margin:16px 20px;font-size:13px}
+.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:10px 14px;border-radius:8px;margin:0 0 12px;font-size:12px}
+.warn b{font-weight:600}
+
+.section-title{font-size:14px;font-weight:700;color:#1e293b;margin:18px 0 10px;padding-left:4px;display:flex;align-items:center;gap:6px}
+.section-title::before{content:'';width:3px;height:14px;background:#1e40af;border-radius:2px}
+
+@media(max-width:1100px){.kgrid{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){.g2,.g3,.g31{grid-template-columns:1fr}.kgrid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><div class="nav-logo">DC</div><div class="nav-title">DCF · Reactivation Funnel</div></div>
+  <div class="nav-tabs">
+    <div class="tab active" onclick="showTab('overview',this)">📊 Overview</div>
+    <div class="tab" onclick="showTab('rsm',this)">🌐 RSM View</div>
+    <div class="tab" onclick="showTab('sm',this)">👔 SM View</div>
+    <div class="tab" onclick="showTab('fos',this)">👤 FOS Detail</div>
+    <div class="tab" onclick="showTab('dealers',this)">🚗 Dealer List</div>
+  </div>
+  <div class="nav-right">
+    <div class="live-pill"><div class="ldot"></div> Live</div>
+    <div class="sync-txt" id="sync-txt">Loading...</div>
+    <button class="btn-ref" id="btn-refresh" onclick="refreshData()">↺ Refresh</button>
+  </div>
+</nav>
+
+<div id="error-box"></div>
+
+<!-- ═══ OVERVIEW PAGE ═══ -->
+<div class="page active" id="pg-overview">
+  <div id="loading-overview" class="loading"><div class="spin"></div>Loading reactivation data from Google Sheets...</div>
+  <div id="content-overview" style="display:none">
+
+    <!-- Filters -->
+    <div class="fbar">
+      <span class="flabel">RSM</span><select id="f-rsm" onchange="renderAll()"><option value="">All</option></select>
+      <span class="flabel">SM</span><select id="f-sm" onchange="renderAll()"><option value="">All</option></select>
+      <span class="flabel">FOS</span><select id="f-fos" onchange="renderAll()"><option value="">All</option></select>
+      <input type="text" id="f-q" placeholder="🔍 Search dealer / name / code..." oninput="renderAll()" style="width:225px">
+      <div class="fcount" id="f-cnt">—</div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kgrid" id="kpi-row"></div>
+
+    <!-- Funnel -->
+    <div class="card">
+      <div class="ch">
+        <span class="ct">🎯 Reactivation Funnel — Lead → Login → Approval → Disbursal</span>
+        <span class="bdg bdg-b" id="funnel-badge">All Dealers</span>
+      </div>
+      <div class="cb"><div class="funnel-wrap" id="funnel-wrap"></div></div>
+    </div>
+
+    <!-- RSM Summary Table -->
+    <div class="section-title">RSM-Level Summary</div>
+    <div class="card">
+      <div class="ch">
+        <span class="ct">🌐 Performance by RSM</span>
+        <span class="bdg bdg-b" id="rsm-cnt">—</span>
+      </div>
+      <div class="tw" style="max-height:none">
+        <table>
+          <thead><tr>
+            <th>RSM</th>
+            <th class="num">SMs</th>
+            <th class="num">FOS</th>
+            <th class="num">Dealers</th>
+            <th class="num">Leads</th>
+            <th class="num">Logins</th>
+            <th class="num">Approvals</th>
+            <th class="num">Disbursals</th>
+            <th class="num">Lead → Login</th>
+            <th class="num">Login → Approval</th>
+            <th class="num">Approval → Disb</th>
+            <th class="num">Overall Conv%</th>
+          </tr></thead>
+          <tbody id="rsm-bd"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="g2">
+      <div class="card">
+        <div class="ch"><span class="ct">📊 Funnel Stage Comparison</span><span class="bdg bdg-b">All</span></div>
+        <div class="cb" style="padding:8px 12px"><canvas id="ch-stages" height="190"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="ch"><span class="ct">🏆 Top SMs by Disbursals</span><span class="bdg bdg-b">Top 8</span></div>
+        <div class="cb" id="top-sm-bars"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ RSM PAGE ═══ -->
+<div class="page" id="pg-rsm">
+  <div class="fbar">
+    <input type="text" id="rsm-q" placeholder="🔍 Search RSM..." oninput="renderRSMPage()" style="width:200px">
+    <span class="flabel">Sort by</span>
+    <select id="rsm-sort" onchange="renderRSMPage()">
+      <option value="disb_d">Disbursals ↓</option>
+      <option value="disb_a">Disbursals ↑</option>
+      <option value="conv_d">Overall Conv% ↓</option>
+      <option value="lead_d">Leads ↓</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="ct">🌐 RSM Performance — Full View</span><span class="bdg bdg-b" id="rsm-pg-cnt">—</span></div>
+    <div class="tw" style="max-height:75vh">
+      <table>
+        <thead><tr>
+          <th>RSM</th>
+          <th class="num">SMs</th>
+          <th class="num">FOS</th>
+          <th class="num">Dealers</th>
+          <th class="num">Leads</th>
+          <th class="num">Logins</th>
+          <th class="num">Approvals</th>
+          <th class="num">Disbursals</th>
+          <th class="num">Lead→Login</th>
+          <th class="num">Login→App</th>
+          <th class="num">App→Disb</th>
+          <th class="num">Overall</th>
+        </tr></thead>
+        <tbody id="rsm-pg-bd"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SM PAGE ═══ -->
+<div class="page" id="pg-sm">
+  <div class="fbar">
+    <span class="flabel">RSM</span><select id="sm-rsm" onchange="renderSMPage()"><option value="">All</option></select>
+    <input type="text" id="sm-q" placeholder="🔍 Search SM..." oninput="renderSMPage()" style="width:200px">
+    <span class="flabel">Sort by</span>
+    <select id="sm-sort" onchange="renderSMPage()">
+      <option value="disb_d">Disbursals ↓</option>
+      <option value="conv_d">Conv% ↓</option>
+      <option value="lead_d">Leads ↓</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="ct">👔 SM Performance</span><span class="bdg bdg-b" id="sm-pg-cnt">—</span></div>
+    <div class="tw" style="max-height:75vh">
+      <table>
+        <thead><tr>
+          <th>SM</th>
+          <th>RSM</th>
+          <th class="num">FOS</th>
+          <th class="num">Dealers</th>
+          <th class="num">Leads</th>
+          <th class="num">Logins</th>
+          <th class="num">Approvals</th>
+          <th class="num">Disbursals</th>
+          <th class="num">L→Lg</th>
+          <th class="num">Lg→A</th>
+          <th class="num">A→D</th>
+          <th class="num">Overall</th>
+        </tr></thead>
+        <tbody id="sm-pg-bd"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FOS PAGE ═══ -->
+<div class="page" id="pg-fos">
+  <div class="fbar">
+    <span class="flabel">RSM</span><select id="fos-rsm" onchange="renderFOSPage()"><option value="">All</option></select>
+    <span class="flabel">SM</span><select id="fos-sm" onchange="renderFOSPage()"><option value="">All</option></select>
+    <input type="text" id="fos-q" placeholder="🔍 Search FOS..." oninput="renderFOSPage()" style="width:200px">
+    <span class="flabel">Sort by</span>
+    <select id="fos-sort" onchange="renderFOSPage()">
+      <option value="disb_d">Disbursals ↓</option>
+      <option value="conv_d">Conv% ↓</option>
+      <option value="lead_d">Leads ↓</option>
+      <option value="dlr_d">Dealers ↓</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="ct">👤 FOS-Level Performance</span><span class="bdg bdg-b" id="fos-pg-cnt">—</span></div>
+    <div class="tw" style="max-height:75vh">
+      <table>
+        <thead><tr>
+          <th>FOS</th>
+          <th>SM</th>
+          <th>RSM</th>
+          <th class="num">Dealers</th>
+          <th class="num">Leads</th>
+          <th class="num">Logins</th>
+          <th class="num">Approvals</th>
+          <th class="num">Disbursals</th>
+          <th class="num">L→Lg</th>
+          <th class="num">Lg→A</th>
+          <th class="num">A→D</th>
+          <th class="num">Overall</th>
+        </tr></thead>
+        <tbody id="fos-pg-bd"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DEALER LIST PAGE ═══ -->
+<div class="page" id="pg-dealers">
+  <div class="fbar">
+    <span class="flabel">RSM</span><select id="dlr-rsm" onchange="renderDealerPage()"><option value="">All</option></select>
+    <span class="flabel">SM</span><select id="dlr-sm" onchange="renderDealerPage()"><option value="">All</option></select>
+    <span class="flabel">FOS</span><select id="dlr-fos" onchange="renderDealerPage()"><option value="">All</option></select>
+    <span class="flabel">Stage</span>
+    <select id="dlr-stage" onchange="renderDealerPage()">
+      <option value="">All Stages</option>
+      <option value="lead">Lead Generated</option>
+      <option value="login">Logged In</option>
+      <option value="approval">Approved</option>
+      <option value="disb">Disbursed</option>
+      <option value="dropoff_login">Lead but No Login</option>
+      <option value="dropoff_approval">Login but No Approval</option>
+      <option value="dropoff_disb">Approved but No Disbursal</option>
+    </select>
+    <input type="text" id="dlr-q" placeholder="🔍 Search dealer..." oninput="renderDealerPage()" style="width:200px">
+  </div>
+  <div class="card">
+    <div class="ch"><span class="ct">🚗 Reactivation Dealers</span><span class="bdg bdg-b" id="dlr-pg-cnt">—</span></div>
+    <div class="tw" style="max-height:78vh">
+      <table>
+        <thead><tr>
+          <th>Dealer</th>
+          <th>FOS</th>
+          <th>SM</th>
+          <th>RSM</th>
+          <th class="num">Lead</th>
+          <th class="num">Login</th>
+          <th class="num">Approval</th>
+          <th class="num">Disbursal</th>
+          <th>Current Stage</th>
+        </tr></thead>
+        <tbody id="dlr-pg-bd"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// LIVE DATA SOURCE — Reactivation Sheet (publish to web as CSV)
+// ════════════════════════════════════════════════════════════════
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsiUG48q_6lCg6AEwT4A0tcAueNiJqt1EHvn3-Ax57ZDrb8QOojjAM2R0aQ0IUxtxiNH8bduB0UT7z/pub?gid=1624611570&single=true&output=csv";
+
+let DATA = [];          // cleaned rows (one object per dealer)
+let HEADERS = [];       // raw header row
+let COL_MAP = {};       // resolved column indices
+let charts = {};
+
+// ════════════════════════════════════════════════════════════════
+// CSV PARSER (RFC 4180 compliant)
+// ════════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (c === '"') inQuotes = false;
+      else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ""; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c !== '\r') field += c;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => (c || "").trim()));
+}
+
+// ════════════════════════════════════════════════════════════════
+// AUTO-DETECT COLUMN MAP from header row
+// Matches partial / case-insensitive header text to expected fields.
+// ════════════════════════════════════════════════════════════════
+function detectColumns(headers) {
+  const lower = headers.map(h => (h || "").toLowerCase().trim());
+  const find = (...patterns) => {
+    for (const p of patterns) {
+      const idx = lower.findIndex(h => p.test(h));
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+  return {
+    rsm:        find(/^rsm$/, /\brsm\b/, /regional\s*sales/, /regional\s*manager/),
+    sm:         find(/^sm$/, /sales\s*manager/, /^sm\s/, /\bsm\b(?!.*rsm)/),
+    fos:        find(/^fos$/, /\bfos\b/, /field\s*officer/, /field\s*sales/),
+    dealerName: find(/dealer.*name/, /^name$/, /^dealer$/, /dealership/),
+    dealerCode: find(/dealer.*code/, /^code$/, /dealer.*id/),
+    channel:    find(/channel/, /segment/),
+    city:       find(/^city$/, /location/),
+    lead:       find(/^lead$/, /^leads$/, /lead\s*gen/, /lead\s*flag/, /^lead\s/),
+    login:      find(/^login$/, /^logins$/, /logged.*in/, /login\s*flag/, /^login\s/),
+    approval:   find(/^approv/, /^approved$/, /approval\s*flag/, /sanction/, /\bappr/),
+    disbursal:  find(/^disb/, /disbursed/, /disbursal/, /\bdisb/),
+    amount:     find(/disb.*amt/, /disb.*amount/, /amount/, /loan.*amt/),
+    date:       find(/^date$/, /lead.*date/, /created/),
+  };
+}
+
+// Generic value-to-number/flag converter.
+// Treats blank / "no" / "0" / "false" as 0; numbers as their value;
+// "yes" / "y" / "true" / non-empty text as 1.
+function toCount(v) {
+  if (v == null) return 0;
+  const s = String(v).trim().toLowerCase();
+  if (!s) return 0;
+  if (s === 'no' || s === 'n' || s === 'false' || s === '0' || s === '-') return 0;
+  if (s === 'yes' || s === 'y' || s === 'true') return 1;
+  // Strip commas, currency symbols, spaces
+  const num = parseFloat(s.replace(/[,₹\s]/g, ''));
+  if (!isNaN(num)) return num;
+  return 1; // any other non-empty = 1 (e.g. a date or status string)
+}
+
+// ════════════════════════════════════════════════════════════════
+// LOAD DATA from sheet → build DATA[] array
+// ════════════════════════════════════════════════════════════════
+async function loadData() {
+  const res = await fetch(SHEET_URL + "&t=" + Date.now());
+  if (!res.ok) throw new Error("Sheet HTTP " + res.status);
+  const text = await res.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error("Sheet has no data rows");
+
+  // Find header row — it's the first row that contains the word "RSM" or "SM" or "FOS"
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const joined = rows[i].join('|').toLowerCase();
+    if (/\b(rsm|sm|fos)\b/.test(joined)) { headerIdx = i; break; }
+  }
+
+  HEADERS = rows[headerIdx];
+  COL_MAP = detectColumns(HEADERS);
+
+  const out = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const get = idx => idx >= 0 ? (r[idx] || "").trim() : "";
+
+    const lead     = toCount(get(COL_MAP.lead));
+    const login    = toCount(get(COL_MAP.login));
+    const approval = toCount(get(COL_MAP.approval));
+    const disb     = toCount(get(COL_MAP.disbursal));
+
+    // skip totally empty rows
+    if (!get(COL_MAP.rsm) && !get(COL_MAP.sm) && !get(COL_MAP.fos)
+        && !get(COL_MAP.dealerName) && !get(COL_MAP.dealerCode)
+        && lead + login + approval + disb === 0) continue;
+
+    out.push({
+      rsm:        get(COL_MAP.rsm),
+      sm:         get(COL_MAP.sm),
+      fos:        get(COL_MAP.fos),
+      dealerName: get(COL_MAP.dealerName),
+      dealerCode: get(COL_MAP.dealerCode),
+      channel:    get(COL_MAP.channel),
+      city:       get(COL_MAP.city),
+      lead, login, approval, disb,
+      amount:     parseFloat(get(COL_MAP.amount).replace(/[,₹\s]/g, '')) || 0
+    });
+  }
+
+  DATA = out;
+
+  const now = new Date().toLocaleTimeString('en-IN', {timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true});
+  document.getElementById('sync-txt').textContent = 'Synced ' + now;
+  document.getElementById('error-box').innerHTML = buildColumnWarning();
+  return true;
+}
+
+function buildColumnWarning() {
+  const required = ['rsm', 'sm', 'fos', 'lead', 'login', 'approval', 'disbursal'];
+  const missing = required.filter(k => COL_MAP[k] === -1);
+  if (missing.length === 0) return '';
+  return `<div class="warn">⚠️ <b>Some columns couldn't be auto-detected:</b> ${missing.join(', ')}.
+    Make sure your sheet headers contain these keywords. Available headers: <i>${HEADERS.filter(h => h).join(' · ')}</i></div>`;
+}
+
+async function refreshData() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true; btn.textContent = '⟳ Loading...';
+  try {
+    await loadData();
+    setupFilters();
+    renderAll();
+  } catch (err) {
+    document.getElementById('error-box').innerHTML = '<div class="err">⚠️ Data load failed: ' + err.message + '</div>';
+    document.getElementById('sync-txt').textContent = 'Sync failed';
+  }
+  btn.disabled = false; btn.textContent = '↺ Refresh';
+}
+
+// ════════════════════════════════════════════════════════════════
+// FILTERS & UTILITIES
+// ════════════════════════════════════════════════════════════════
+function unique(arr) { return [...new Set(arr)].filter(x => x).sort(); }
+
+function fillSelect(id, options, keepValue = true) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cur = el.value;
+  el.innerHTML = '<option value="">All</option>' + options.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
+  if (keepValue && options.includes(cur)) el.value = cur;
+}
+
+function setupFilters() {
+  const rsms = unique(DATA.map(d => d.rsm));
+  const sms = unique(DATA.map(d => d.sm));
+  const foss = unique(DATA.map(d => d.fos));
+
+  ['f-rsm', 'sm-rsm', 'fos-rsm', 'dlr-rsm'].forEach(id => fillSelect(id, rsms));
+  ['f-sm', 'fos-sm', 'dlr-sm'].forEach(id => fillSelect(id, sms));
+  ['f-fos', 'dlr-fos'].forEach(id => fillSelect(id, foss));
+}
+
+function escapeHTML(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('en-IN'); }
+
+function pctClass(v) {
+  if (v == null || isNaN(v)) return 'p-no';
+  if (v >= 60) return 'p-hi';
+  if (v >= 30) return 'p-md';
+  if (v > 0)   return 'p-lo';
+  return 'p-no';
+}
+function pctHTML(num, den) {
+  if (!den) return `<span class="pct p-no">—</span>`;
+  const v = (num / den) * 100;
+  return `<span class="pct ${pctClass(v)}">${v.toFixed(1)}%</span>`;
+}
+
+// Apply filters from overview filter bar
+function getFiltered() {
+  const rsm = document.getElementById('f-rsm').value;
+  const sm  = document.getElementById('f-sm').value;
+  const fos = document.getElementById('f-fos').value;
+  const q   = (document.getElementById('f-q').value || '').toLowerCase();
+  return DATA.filter(d =>
+    (!rsm || d.rsm === rsm) && (!sm || d.sm === sm) && (!fos || d.fos === fos) &&
+    (!q || (d.dealerName + ' ' + d.dealerCode + ' ' + d.fos).toLowerCase().includes(q))
+  );
+}
+
+function aggregate(rows) {
+  return {
+    dealers: rows.length,
+    lead: rows.reduce((s,r) => s + r.lead, 0),
+    login: rows.reduce((s,r) => s + r.login, 0),
+    approval: rows.reduce((s,r) => s + r.approval, 0),
+    disb: rows.reduce((s,r) => s + r.disb, 0),
+    amount: rows.reduce((s,r) => s + r.amount, 0)
+  };
+}
+
+function aggregateBy(rows, key) {
+  const groups = {};
+  rows.forEach(r => {
+    const k = r[key]; if (!k) return;
+    if (!groups[k]) groups[k] = {key:k, rows:[], smSet:new Set(), fosSet:new Set()};
+    groups[k].rows.push(r);
+    if (r.sm)  groups[k].smSet.add(r.sm);
+    if (r.fos) groups[k].fosSet.add(r.fos);
+  });
+  return Object.values(groups).map(g => {
+    const a = aggregate(g.rows);
+    return {...g, ...a, smCount: g.smSet.size, fosCount: g.fosSet.size};
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// MAIN ORCHESTRATOR
+// ════════════════════════════════════════════════════════════════
+function renderAll() {
+  document.getElementById('loading-overview').style.display = 'none';
+  document.getElementById('content-overview').style.display = 'block';
+
+  const f = getFiltered();
+  document.getElementById('f-cnt').textContent = f.length + ' dealers';
+  renderKPIs(f);
+  renderFunnel(f);
+  renderRSMSummary(f);
+  renderStageChart(f);
+  renderTopSMs(f);
+
+  // Other pages
+  renderRSMPage();
+  renderSMPage();
+  renderFOSPage();
+  renderDealerPage();
+}
+
+// ═══ OVERVIEW: KPI ROW ═══
+function renderKPIs(rows) {
+  const a = aggregate(rows);
+  const conv = a.lead ? (a.disb / a.lead * 100).toFixed(1) : '0.0';
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi"><div class="kl">Total Dealers</div><div class="kv">${fmt(a.dealers)}</div><div class="ks">In selection</div></div>
+    <div class="kpi t"><div class="kl">Leads</div><div class="kv">${fmt(a.lead)}</div><div class="ks">Funnel start</div></div>
+    <div class="kpi p"><div class="kl">Logins</div><div class="kv">${fmt(a.login)}</div><div class="ks">${a.lead?(a.login/a.lead*100).toFixed(1):0}% of leads</div></div>
+    <div class="kpi y"><div class="kl">Approvals</div><div class="kv">${fmt(a.approval)}</div><div class="ks">${a.login?(a.approval/a.login*100).toFixed(1):0}% of logins</div></div>
+    <div class="kpi g"><div class="kl">Disbursals</div><div class="kv">${fmt(a.disb)}</div><div class="ks">${a.approval?(a.disb/a.approval*100).toFixed(1):0}% of approvals</div></div>
+    <div class="kpi o"><div class="kl">Overall Conv%</div><div class="kv">${conv}%</div><div class="ks">Lead → Disbursal</div></div>
+  `;
+}
+
+// ═══ OVERVIEW: FUNNEL VISUALIZATION ═══
+function renderFunnel(rows) {
+  const a = aggregate(rows);
+  const stages = [
+    {label:'Leads',      count:a.lead,     color:'#0891b2', conv:null},
+    {label:'Logins',     count:a.login,    color:'#7c3aed', conv:a.lead ? a.login/a.lead*100 : null},
+    {label:'Approvals',  count:a.approval, color:'#d97706', conv:a.login ? a.approval/a.login*100 : null},
+    {label:'Disbursals', count:a.disb,     color:'#16a34a', conv:a.approval ? a.disb/a.approval*100 : null}
+  ];
+  const max = Math.max(1, a.lead, a.login, a.approval, a.disb);
+
+  document.getElementById('funnel-wrap').innerHTML = stages.map((s,i) => {
+    const w = (s.count / max) * 100;
+    const convHTML = s.conv == null
+      ? `<span class="pct p-no">START</span>`
+      : `<span class="pct ${pctClass(s.conv)}">${s.conv.toFixed(1)}%</span>`;
+    return `<div class="funnel-stage">
+      <div class="funnel-lbl">${s.label}<small>Stage ${i+1}</small></div>
+      <div class="funnel-bar">
+        <div class="funnel-fill" style="width:${Math.max(w, 6)}%;background:${s.color}">${fmt(s.count)}</div>
+      </div>
+      <div class="funnel-conv">${convHTML}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('funnel-badge').textContent = fmt(a.dealers) + ' dealers';
+}
+
+// ═══ OVERVIEW: RSM SUMMARY TABLE ═══
+function renderRSMSummary(rows) {
+  const groups = aggregateBy(rows, 'rsm').sort((a,b) => b.disb - a.disb);
+  document.getElementById('rsm-cnt').textContent = groups.length + ' RSMs';
+
+  if (groups.length === 0) {
+    document.getElementById('rsm-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No RSM data — check column mapping</td></tr>`;
+    return;
+  }
+
+  // Totals row
+  const tot = groups.reduce((s,g) => ({
+    smCount: s.smCount + g.smCount, fosCount: s.fosCount + g.fosCount,
+    dealers: s.dealers + g.dealers, lead: s.lead + g.lead,
+    login: s.login + g.login, approval: s.approval + g.approval, disb: s.disb + g.disb
+  }), {smCount:0,fosCount:0,dealers:0,lead:0,login:0,approval:0,disb:0});
+
+  const rowHTML = (g, isTotal=false) => `
+    <tr style="${isTotal?'background:#f1f5f9;font-weight:700;border-top:2px solid #cbd5e1':''}">
+      <td style="font-weight:${isTotal?700:600};color:${isTotal?'#1e40af':'#1e293b'}">${isTotal ? '📊 TOTAL' : escapeHTML(g.key)}</td>
+      <td class="num">${g.smCount}</td>
+      <td class="num">${g.fosCount}</td>
+      <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
+      <td class="num"><span class="vb vh" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
+      <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
+      <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.login, g.lead)}</td>
+      <td class="num">${pctHTML(g.approval, g.login)}</td>
+      <td class="num">${pctHTML(g.disb, g.approval)}</td>
+      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+    </tr>`;
+
+  document.getElementById('rsm-bd').innerHTML =
+    groups.map(g => rowHTML(g)).join('') + rowHTML(tot, true);
+}
+
+// ═══ OVERVIEW: FUNNEL STAGE COMPARISON CHART ═══
+function renderStageChart(rows) {
+  const a = aggregate(rows);
+  drawChart('ch-stages', 'bar', {
+    labels: ['Leads', 'Logins', 'Approvals', 'Disbursals'],
+    datasets: [{
+      label: 'Count',
+      data: [a.lead, a.login, a.approval, a.disb],
+      backgroundColor: ['#0891b2', '#7c3aed', '#d97706', '#16a34a'],
+      borderRadius: 6
+    }]
+  }, {plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}});
+}
+
+// ═══ OVERVIEW: TOP SMs ═══
+function renderTopSMs(rows) {
+  const groups = aggregateBy(rows, 'sm').filter(g => g.disb > 0).sort((a,b) => b.disb - a.disb).slice(0, 8);
+  const max = groups[0] ? groups[0].disb : 1;
+  if (groups.length === 0) {
+    document.getElementById('top-sm-bars').innerHTML = `<div style="text-align:center;color:#94a3b8;padding:30px">No disbursal data yet</div>`;
+    return;
+  }
+  document.getElementById('top-sm-bars').innerHTML = groups.map(g => `
+    <div class="br-row">
+      <div class="br-name" title="${escapeHTML(g.key)}">${escapeHTML(g.key)}</div>
+      <div class="br-track"><div class="br-fill" style="width:${(g.disb/max)*100}%;background:#16a34a"></div></div>
+      <div class="br-val">${fmt(g.disb)}</div>
+    </div>`).join('');
+}
+
+// ═══ RSM PAGE ═══
+function renderRSMPage() {
+  const q = (document.getElementById('rsm-q')?.value || '').toLowerCase();
+  const sort = document.getElementById('rsm-sort')?.value || 'disb_d';
+  let groups = aggregateBy(DATA, 'rsm').filter(g => !q || g.key.toLowerCase().includes(q));
+  const sorters = {
+    disb_d: (a,b) => b.disb - a.disb,
+    disb_a: (a,b) => a.disb - b.disb,
+    conv_d: (a,b) => (b.lead?b.disb/b.lead:0) - (a.lead?a.disb/a.lead:0),
+    lead_d: (a,b) => b.lead - a.lead,
+  };
+  groups.sort(sorters[sort]);
+  document.getElementById('rsm-pg-cnt').textContent = groups.length + ' RSMs';
+
+  if (groups.length === 0) {
+    document.getElementById('rsm-pg-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
+    return;
+  }
+
+  document.getElementById('rsm-pg-bd').innerHTML = groups.map(g => `
+    <tr>
+      <td style="font-weight:600">${escapeHTML(g.key)}</td>
+      <td class="num">${g.smCount}</td>
+      <td class="num">${g.fosCount}</td>
+      <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
+      <td class="num"><span class="vb" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
+      <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
+      <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.login, g.lead)}</td>
+      <td class="num">${pctHTML(g.approval, g.login)}</td>
+      <td class="num">${pctHTML(g.disb, g.approval)}</td>
+      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+    </tr>`).join('');
+}
+
+// ═══ SM PAGE ═══
+function renderSMPage() {
+  const rsm = document.getElementById('sm-rsm')?.value || '';
+  const q = (document.getElementById('sm-q')?.value || '').toLowerCase();
+  const sort = document.getElementById('sm-sort')?.value || 'disb_d';
+
+  const filtered = DATA.filter(d => !rsm || d.rsm === rsm);
+  let groups = aggregateBy(filtered, 'sm').filter(g => !q || g.key.toLowerCase().includes(q));
+
+  // attach RSM (most common in group)
+  groups.forEach(g => {
+    const counts = {};
+    g.rows.forEach(r => { if (r.rsm) counts[r.rsm] = (counts[r.rsm]||0)+1; });
+    g.rsm = Object.entries(counts).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+  });
+
+  const sorters = {
+    disb_d: (a,b) => b.disb - a.disb,
+    conv_d: (a,b) => (b.lead?b.disb/b.lead:0) - (a.lead?a.disb/a.lead:0),
+    lead_d: (a,b) => b.lead - a.lead,
+  };
+  groups.sort(sorters[sort]);
+  document.getElementById('sm-pg-cnt').textContent = groups.length + ' SMs';
+
+  if (groups.length === 0) {
+    document.getElementById('sm-pg-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
+    return;
+  }
+
+  document.getElementById('sm-pg-bd').innerHTML = groups.map(g => `
+    <tr>
+      <td style="font-weight:500">${escapeHTML(g.key)}</td>
+      <td style="color:#64748b;font-size:11px">${escapeHTML(g.rsm)}</td>
+      <td class="num">${g.fosCount}</td>
+      <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
+      <td class="num"><span class="vb" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
+      <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
+      <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.login, g.lead)}</td>
+      <td class="num">${pctHTML(g.approval, g.login)}</td>
+      <td class="num">${pctHTML(g.disb, g.approval)}</td>
+      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+    </tr>`).join('');
+}
+
+// ═══ FOS PAGE ═══
+function renderFOSPage() {
+  const rsm = document.getElementById('fos-rsm')?.value || '';
+  const sm  = document.getElementById('fos-sm')?.value || '';
+  const q = (document.getElementById('fos-q')?.value || '').toLowerCase();
+  const sort = document.getElementById('fos-sort')?.value || 'disb_d';
+
+  const filtered = DATA.filter(d => (!rsm || d.rsm === rsm) && (!sm || d.sm === sm));
+  let groups = aggregateBy(filtered, 'fos').filter(g => !q || g.key.toLowerCase().includes(q));
+
+  // attach SM and RSM
+  groups.forEach(g => {
+    const smC = {}, rsmC = {};
+    g.rows.forEach(r => {
+      if (r.sm)  smC[r.sm]   = (smC[r.sm]||0)+1;
+      if (r.rsm) rsmC[r.rsm] = (rsmC[r.rsm]||0)+1;
+    });
+    g.sm  = Object.entries(smC).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+    g.rsm = Object.entries(rsmC).sort((a,b) => b[1]-a[1])[0]?.[0] || '—';
+  });
+
+  const sorters = {
+    disb_d: (a,b) => b.disb - a.disb,
+    conv_d: (a,b) => (b.lead?b.disb/b.lead:0) - (a.lead?a.disb/a.lead:0),
+    lead_d: (a,b) => b.lead - a.lead,
+    dlr_d:  (a,b) => b.dealers - a.dealers,
+  };
+  groups.sort(sorters[sort]);
+  document.getElementById('fos-pg-cnt').textContent = groups.length + ' FOS';
+
+  if (groups.length === 0) {
+    document.getElementById('fos-pg-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
+    return;
+  }
+
+  document.getElementById('fos-pg-bd').innerHTML = groups.map(g => `
+    <tr>
+      <td style="font-weight:500">${escapeHTML(g.key)}</td>
+      <td style="color:#64748b;font-size:11px">${escapeHTML(g.sm)}</td>
+      <td style="color:#64748b;font-size:11px">${escapeHTML(g.rsm)}</td>
+      <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
+      <td class="num"><span class="vb" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
+      <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
+      <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.login, g.lead)}</td>
+      <td class="num">${pctHTML(g.approval, g.login)}</td>
+      <td class="num">${pctHTML(g.disb, g.approval)}</td>
+      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+    </tr>`).join('');
+}
+
+// ═══ DEALER LIST PAGE ═══
+function renderDealerPage() {
+  const rsm = document.getElementById('dlr-rsm')?.value || '';
+  const sm  = document.getElementById('dlr-sm')?.value || '';
+  const fos = document.getElementById('dlr-fos')?.value || '';
+  const stage = document.getElementById('dlr-stage')?.value || '';
+  const q = (document.getElementById('dlr-q')?.value || '').toLowerCase();
+
+  let rows = DATA.filter(d =>
+    (!rsm || d.rsm === rsm) && (!sm || d.sm === sm) && (!fos || d.fos === fos) &&
+    (!q || (d.dealerName + ' ' + d.dealerCode).toLowerCase().includes(q))
+  );
+
+  if (stage) {
+    const stageFilter = {
+      'lead':            d => d.lead > 0,
+      'login':           d => d.login > 0,
+      'approval':        d => d.approval > 0,
+      'disb':            d => d.disb > 0,
+      'dropoff_login':   d => d.lead > 0 && d.login === 0,
+      'dropoff_approval':d => d.login > 0 && d.approval === 0,
+      'dropoff_disb':    d => d.approval > 0 && d.disb === 0,
+    };
+    rows = rows.filter(stageFilter[stage]);
+  }
+
+  document.getElementById('dlr-pg-cnt').textContent = rows.length + ' dealers';
+
+  const stageOf = d => {
+    if (d.disb > 0)     return {label:'✅ Disbursed',   cls:'p-hi'};
+    if (d.approval > 0) return {label:'⏳ Approved',    cls:'p-md'};
+    if (d.login > 0)    return {label:'🔵 Logged In',   cls:'p-md'};
+    if (d.lead > 0)     return {label:'📋 Lead Only',   cls:'p-lo'};
+    return {label:'⚫ No Activity', cls:'p-no'};
+  };
+  const flag = v => v > 0
+    ? `<span class="pct p-hi">${v >= 1 ? '✓' : ''} ${v > 1 ? fmt(v) : ''}</span>`
+    : `<span class="pct p-no">—</span>`;
+
+  if (rows.length === 0) {
+    document.getElementById('dlr-pg-bd').innerHTML = `<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:24px">No dealers match these filters</td></tr>`;
+    return;
+  }
+
+  // Cap render to 500 rows for performance
+  const slice = rows.slice(0, 500);
+  document.getElementById('dlr-pg-bd').innerHTML = slice.map(d => {
+    const st = stageOf(d);
+    return `<tr>
+      <td>
+        <div style="font-weight:500">${escapeHTML(d.dealerName || '—')}</div>
+        ${d.dealerCode ? `<div style="font-size:10px;color:#94a3b8;font-family:monospace">${escapeHTML(d.dealerCode)}</div>` : ''}
+      </td>
+      <td style="font-size:11px;color:#475569">${escapeHTML(d.fos)}</td>
+      <td style="font-size:11px;color:#64748b">${escapeHTML(d.sm)}</td>
+      <td style="font-size:11px;color:#64748b">${escapeHTML(d.rsm)}</td>
+      <td class="num">${flag(d.lead)}</td>
+      <td class="num">${flag(d.login)}</td>
+      <td class="num">${flag(d.approval)}</td>
+      <td class="num">${flag(d.disb)}</td>
+      <td><span class="pct ${st.cls}">${st.label}</span></td>
+    </tr>`;
+  }).join('') + (rows.length > 500 ? `<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:14px;font-style:italic">Showing first 500 of ${rows.length} rows — use filters to narrow</td></tr>` : '');
+}
+
+// ═══ CHART HELPER ═══
+function drawChart(id, type, data, extraOpts) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, {type, data, options: Object.assign({
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display: type !== 'bar'}}
+  }, extraOpts || {})});
+}
+
+// ═══ NAV ═══
+function showTab(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('pg-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+// ═══ INIT ═══
+async function init() {
+  try {
+    await loadData();
+    setupFilters();
+    renderAll();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('error-box').innerHTML =
+      '<div class="err">⚠️ Failed to load data: ' + err.message + '. Make sure the sheet is published to web (File → Share → Publish to web → CSV).</div>';
+    document.getElementById('loading-overview').innerHTML = '<div style="color:#dc2626;padding:30px;text-align:center">Failed to load data — see error above.</div>';
+  }
+}
+init();
+
+// Auto-refresh every 5 min
+setInterval(async () => {
+  try {
+    await loadData();
+    setupFilters();
+    renderAll();
+  } catch (err) {
+    console.error('Auto-refresh failed:', err);
+  }
+}, 5 * 60 * 1000);
+</script>
+</body>
+</html>
