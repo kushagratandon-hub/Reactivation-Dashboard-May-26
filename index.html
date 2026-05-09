@@ -31,7 +31,7 @@ body{font-family:'Inter',sans-serif;background:#ffffff;color:#1a202c;font-size:1
 select,input[type=text],input[type=date]{border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-family:Inter,sans-serif;font-size:12px;color:#1a202c;background:#fff;outline:none;min-width:115px}
 select:focus,input:focus{border-color:#1e40af;box-shadow:0 0 0 2px rgba(30,64,175,.1)}
 .fcount{margin-left:auto;font-size:11px;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:20px}
-.kgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+.kgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:14px}
 .kpi{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:13px 15px;border-top:3px solid #1e40af;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .kpi.g{border-top-color:#16a34a}.kpi.o{border-top-color:#ea580c}.kpi.r{border-top-color:#dc2626}.kpi.p{border-top-color:#7c3aed}.kpi.y{border-top-color:#d97706}.kpi.t{border-top-color:#0891b2}
 .kl{font-size:10px;color:#64748b;font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
@@ -91,7 +91,7 @@ tr:last-child td{border-bottom:none}
 .section-title{font-size:14px;font-weight:700;color:#1e293b;margin:18px 0 10px;padding-left:4px;display:flex;align-items:center;gap:6px}
 .section-title::before{content:'';width:3px;height:14px;background:#1e40af;border-radius:2px}
 
-@media(max-width:1100px){.kgrid{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1100px){.kgrid{grid-template-columns:repeat(4,1fr)}.g4{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.g2,.g3,.g31{grid-template-columns:1fr}.kgrid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -136,7 +136,7 @@ tr:last-child td{border-bottom:none}
     <!-- Funnel -->
     <div class="card">
       <div class="ch">
-        <span class="ct">🎯 Reactivation Funnel — Lead → Login → Approval → Disbursal</span>
+        <span class="ct">🎯 Reactivation Funnel — Visit → Lead → Login → Approval → Disbursal</span>
         <span class="bdg bdg-b" id="funnel-badge">All Dealers</span>
       </div>
       <div class="cb"><div class="funnel-wrap" id="funnel-wrap"></div></div>
@@ -156,13 +156,15 @@ tr:last-child td{border-bottom:none}
             <th class="num">SMs</th>
             <th class="num">FOS</th>
             <th class="num">Dealers</th>
+            <th class="num">Visits</th>
             <th class="num">Leads</th>
             <th class="num">Logins</th>
             <th class="num">Approvals</th>
             <th class="num">Disbursals</th>
-            <th class="num">Lead → Login</th>
-            <th class="num">Login → Approval</th>
-            <th class="num">Approval → Disb</th>
+            <th class="num">V→L</th>
+            <th class="num">L→Lg</th>
+            <th class="num">Lg→A</th>
+            <th class="num">A→D</th>
             <th class="num">Overall Conv%</th>
           </tr></thead>
           <tbody id="rsm-bd"></tbody>
@@ -206,13 +208,15 @@ tr:last-child td{border-bottom:none}
           <th class="num">SMs</th>
           <th class="num">FOS</th>
           <th class="num">Dealers</th>
+          <th class="num">Visits</th>
           <th class="num">Leads</th>
           <th class="num">Logins</th>
           <th class="num">Approvals</th>
           <th class="num">Disbursals</th>
-          <th class="num">Lead→Login</th>
-          <th class="num">Login→App</th>
-          <th class="num">App→Disb</th>
+          <th class="num">V→L</th>
+          <th class="num">L→Lg</th>
+          <th class="num">Lg→A</th>
+          <th class="num">A→D</th>
           <th class="num">Overall</th>
         </tr></thead>
         <tbody id="rsm-pg-bd"></tbody>
@@ -242,10 +246,12 @@ tr:last-child td{border-bottom:none}
           <th>RSM</th>
           <th class="num">FOS</th>
           <th class="num">Dealers</th>
+          <th class="num">Visits</th>
           <th class="num">Leads</th>
           <th class="num">Logins</th>
           <th class="num">Approvals</th>
           <th class="num">Disbursals</th>
+          <th class="num">V→L</th>
           <th class="num">L→Lg</th>
           <th class="num">Lg→A</th>
           <th class="num">A→D</th>
@@ -280,10 +286,12 @@ tr:last-child td{border-bottom:none}
           <th>SM</th>
           <th>RSM</th>
           <th class="num">Dealers</th>
+          <th class="num">Visits</th>
           <th class="num">Leads</th>
           <th class="num">Logins</th>
           <th class="num">Approvals</th>
           <th class="num">Disbursals</th>
+          <th class="num">V→L</th>
           <th class="num">L→Lg</th>
           <th class="num">Lg→A</th>
           <th class="num">A→D</th>
@@ -304,10 +312,12 @@ tr:last-child td{border-bottom:none}
     <span class="flabel">Stage</span>
     <select id="dlr-stage" onchange="renderDealerPage()">
       <option value="">All Stages</option>
+      <option value="visit">Visit Done</option>
       <option value="lead">Lead Generated</option>
       <option value="login">Logged In</option>
       <option value="approval">Approved</option>
       <option value="disb">Disbursed</option>
+      <option value="dropoff_lead">Visit but No Lead</option>
       <option value="dropoff_login">Lead but No Login</option>
       <option value="dropoff_approval">Login but No Approval</option>
       <option value="dropoff_disb">Approved but No Disbursal</option>
@@ -323,6 +333,7 @@ tr:last-child td{border-bottom:none}
           <th>FOS</th>
           <th>SM</th>
           <th>RSM</th>
+          <th class="num">Visit</th>
           <th class="num">Lead</th>
           <th class="num">Login</th>
           <th class="num">Approval</th>
@@ -471,7 +482,7 @@ tr:last-child td{border-bottom:none}
         <table>
           <thead><tr>
             <th>#</th><th>Dealer Name</th><th>Code</th><th>RSM</th><th>SM</th><th>FOS</th>
-            <th class="num">Lead</th><th class="num">Login</th><th class="num">Approval</th><th class="num">Disb</th>
+            <th class="num">Visit</th><th class="num">Lead</th><th class="num">Login</th><th class="num">Approval</th><th class="num">Disb</th>
           </tr></thead>
           <tbody id="diag-sample-bd"></tbody>
         </table>
@@ -587,15 +598,37 @@ function parseCSV(text) {
 
 // ════════════════════════════════════════════════════════════════
 // AUTO-DETECT COLUMN MAP from header row
-// Smart logic: if Lead / Disbursal appear multiple times in the sheet
-// (e.g. an "old" + "new" funnel block), we anchor to the unambiguous
-// Login / Approval columns and pick the Lead immediately to Login's
-// LEFT and the Disbursal immediately to Approval's RIGHT — that's the
-// adjacent funnel block.
+// HARDCODED MAPPING per user spec (Nov 2026):
+//   A=Dealer Code, B=Dealer Name, C=FOS, D=SM, E=RSM, F=City, G=Channel
+//   N=Lead, O=Login, P=Approval, Q=Disbursals, R=Visit
+// We trust these positions and skip auto-detection. The auto-detect logic
+// remains as a fallback if the sheet layout changes again — toggled via
+// the USE_HARDCODED_MAP flag below.
 // ════════════════════════════════════════════════════════════════
-function detectColumns(headers) {
-  const lower = headers.map(h => (h || "").toLowerCase().trim());
+const USE_HARDCODED_MAP = true;
 
+function detectColumns(headers) {
+  if (USE_HARDCODED_MAP) {
+    return {
+      dealerCode: 0,   // A
+      dealerName: 1,   // B
+      fos:        2,   // C
+      sm:         3,   // D
+      rsm:        4,   // E
+      city:       5,   // F
+      channel:    6,   // G
+      lead:       13,  // N
+      login:      14,  // O
+      approval:   15,  // P
+      disbursal:  16,  // Q
+      visit:      17,  // R  ← new: visit-by-FOS metric
+      amount:     -1,
+      date:       -1,
+    };
+  }
+
+  // ─── Fallback auto-detect (kept for resilience) ───
+  const lower = headers.map(h => (h || "").toLowerCase().trim());
   const findAll = (pattern) => {
     const m = [];
     lower.forEach((h, i) => { if (h && pattern.test(h)) m.push(i); });
@@ -608,53 +641,26 @@ function detectColumns(headers) {
     }
     return -1;
   };
-
-  // Login + Approval are usually unambiguous — find them first as anchors.
-  const loginIdx    = findFirst(/^logins?$/, /^login\b/, /logged.?in/);
-  const approvalIdx = findFirst(/^approv/, /^approved/, /sanction/);
-
-  // Lead / Disbursal can appear twice. Anchor to login/approval positions.
+  const loginIdx    = findFirst(/^logins?$/, /^login\b/);
+  const approvalIdx = findFirst(/^approv/, /sanction/);
   const leadCandidates = findAll(/^leads?\b/);
   const disbCandidates = findAll(/^disb/);
-
-  let leadIdx = -1, disbIdx = -1;
-  if (leadCandidates.length === 1) {
-    leadIdx = leadCandidates[0];
-  } else if (loginIdx >= 0 && leadCandidates.length) {
-    // Prefer the Lead column directly to the left of Login
-    const adjacent = leadCandidates.find(i => i === loginIdx - 1);
-    leadIdx = adjacent != null ? adjacent : leadCandidates[leadCandidates.length - 1];
-  } else if (leadCandidates.length) {
-    leadIdx = leadCandidates[leadCandidates.length - 1];
-  }
-
-  if (disbCandidates.length === 1) {
-    disbIdx = disbCandidates[0];
-  } else if (approvalIdx >= 0 && disbCandidates.length) {
-    // Prefer the Disbursal column directly to the right of Approval
-    const adjacent = disbCandidates.find(i => i === approvalIdx + 1);
-    disbIdx = adjacent != null ? adjacent : disbCandidates[disbCandidates.length - 1];
-  } else if (disbCandidates.length) {
-    disbIdx = disbCandidates[disbCandidates.length - 1];
-  }
-
+  let leadIdx = leadCandidates.length === 1 ? leadCandidates[0]
+    : (loginIdx >= 0 ? (leadCandidates.find(i => i === loginIdx - 1) ?? leadCandidates[leadCandidates.length - 1]) : (leadCandidates[leadCandidates.length - 1] ?? -1));
+  let disbIdx = disbCandidates.length === 1 ? disbCandidates[0]
+    : (approvalIdx >= 0 ? (disbCandidates.find(i => i === approvalIdx + 1) ?? disbCandidates[disbCandidates.length - 1]) : (disbCandidates[disbCandidates.length - 1] ?? -1));
   return {
-    // RSM / SM — anchor to start of header
-    rsm:        findFirst(/^rsm\b/, /regional\s*sales/, /regional\s*manager/),
-    sm:         findFirst(/^sm$/, /^sales\s*manager$/, /^sm\s/),
-    // FOS may have trailing comma "FOS," from sheet quirks
-    fos:        findFirst(/^fos[,\s]*$/, /^fos\b/, /field\s*officer/, /field\s*sales/),
-    // Dealer Name — handle "Deale Name" typo
-    dealerName: findFirst(/^dealer\s*name/, /^deale\s*name/, /dealership.*name/, /^name$/, /^dealer$/),
-    dealerCode: findFirst(/^dealer\s*code/, /dealer\s*id/, /^code$/),
-    channel:    findFirst(/^channel/, /segment/),
-    city:       findFirst(/dealer\s*city/, /^city$/, /location/),
-    lead:       leadIdx,
-    login:      loginIdx,
-    approval:   approvalIdx,
-    disbursal:  disbIdx,
-    amount:     findFirst(/disb.*amt/, /disb.*amount/, /^amount/, /loan.*amt/),
-    date:       findFirst(/^date$/, /lead.*date/, /created/),
+    rsm:        findFirst(/^rsm\b/),
+    sm:         findFirst(/^sm$/, /^sm\s/),
+    fos:        findFirst(/^fos[,\s]*$/, /^fos\b/),
+    dealerName: findFirst(/^dealer\s*name/, /^deale\s*name/),
+    dealerCode: findFirst(/^dealer\s*code/),
+    channel:    findFirst(/^channel/),
+    city:       findFirst(/dealer\s*city/, /^city$/),
+    lead: leadIdx, login: loginIdx, approval: approvalIdx, disbursal: disbIdx,
+    visit:      findFirst(/^visits?\b/),
+    amount:     findFirst(/disb.*amt/, /^amount/),
+    date:       findFirst(/^date$/),
   };
 }
 
@@ -795,11 +801,12 @@ async function loadData() {
     const login    = toCount(get(COL_MAP.login));
     const approval = toCount(get(COL_MAP.approval));
     const disb     = toCount(get(COL_MAP.disbursal));
+    const visit    = toCount(get(COL_MAP.visit));
 
     // skip totally empty rows
     if (!get(COL_MAP.rsm) && !get(COL_MAP.sm) && !get(COL_MAP.fos)
         && !get(COL_MAP.dealerName) && !get(COL_MAP.dealerCode)
-        && lead + login + approval + disb === 0) continue;
+        && visit + lead + login + approval + disb === 0) continue;
 
     out.push({
       rsm:        get(COL_MAP.rsm),
@@ -809,7 +816,7 @@ async function loadData() {
       dealerCode: get(COL_MAP.dealerCode),
       channel:    get(COL_MAP.channel),
       city:       get(COL_MAP.city),
-      lead, login, approval, disb,
+      visit, lead, login, approval, disb,
       amount:     parseFloat(get(COL_MAP.amount).replace(/[,₹\s]/g, '')) || 0
     });
   }
@@ -905,6 +912,7 @@ function getFiltered() {
 function aggregate(rows) {
   return {
     dealers: rows.length,
+    visit: rows.reduce((s,r) => s + (r.visit || 0), 0),
     lead: rows.reduce((s,r) => s + r.lead, 0),
     login: rows.reduce((s,r) => s + r.login, 0),
     approval: rows.reduce((s,r) => s + r.approval, 0),
@@ -950,30 +958,32 @@ function renderAll() {
   renderDealerPage();
 }
 
-// ═══ OVERVIEW: KPI ROW ═══
+// ═══ OVERVIEW: KPI ROW (7 cards: Dealers + 5 funnel stages + overall conv) ═══
 function renderKPIs(rows) {
   const a = aggregate(rows);
-  const conv = a.lead ? (a.disb / a.lead * 100).toFixed(1) : '0.0';
+  const conv = a.visit ? (a.disb / a.visit * 100).toFixed(1) : '0.0';
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi"><div class="kl">Total Dealers</div><div class="kv">${fmt(a.dealers)}</div><div class="ks">In selection</div></div>
-    <div class="kpi t"><div class="kl">Leads</div><div class="kv">${fmt(a.lead)}</div><div class="ks">Funnel start</div></div>
+    <div class="kpi r"><div class="kl">Visits</div><div class="kv">${fmt(a.visit)}</div><div class="ks">FOS visit count</div></div>
+    <div class="kpi t"><div class="kl">Leads</div><div class="kv">${fmt(a.lead)}</div><div class="ks">${a.visit?(a.lead/a.visit*100).toFixed(1):0}% of visits</div></div>
     <div class="kpi p"><div class="kl">Logins</div><div class="kv">${fmt(a.login)}</div><div class="ks">${a.lead?(a.login/a.lead*100).toFixed(1):0}% of leads</div></div>
     <div class="kpi y"><div class="kl">Approvals</div><div class="kv">${fmt(a.approval)}</div><div class="ks">${a.login?(a.approval/a.login*100).toFixed(1):0}% of logins</div></div>
     <div class="kpi g"><div class="kl">Disbursals</div><div class="kv">${fmt(a.disb)}</div><div class="ks">${a.approval?(a.disb/a.approval*100).toFixed(1):0}% of approvals</div></div>
-    <div class="kpi o"><div class="kl">Overall Conv%</div><div class="kv">${conv}%</div><div class="ks">Lead → Disbursal</div></div>
+    <div class="kpi o"><div class="kl">Overall Conv%</div><div class="kv">${conv}%</div><div class="ks">Visit → Disbursal</div></div>
   `;
 }
 
-// ═══ OVERVIEW: FUNNEL VISUALIZATION ═══
+// ═══ OVERVIEW: FUNNEL VISUALIZATION (5 stages: Visit→Lead→Login→Approval→Disb) ═══
 function renderFunnel(rows) {
   const a = aggregate(rows);
   const stages = [
-    {label:'Leads',      count:a.lead,     color:'#0891b2', conv:null},
+    {label:'Visits',     count:a.visit,    color:'#dc2626', conv:null},
+    {label:'Leads',      count:a.lead,     color:'#0891b2', conv:a.visit ? a.lead/a.visit*100 : null},
     {label:'Logins',     count:a.login,    color:'#7c3aed', conv:a.lead ? a.login/a.lead*100 : null},
     {label:'Approvals',  count:a.approval, color:'#d97706', conv:a.login ? a.approval/a.login*100 : null},
     {label:'Disbursals', count:a.disb,     color:'#16a34a', conv:a.approval ? a.disb/a.approval*100 : null}
   ];
-  const max = Math.max(1, a.lead, a.login, a.approval, a.disb);
+  const max = Math.max(1, a.visit, a.lead, a.login, a.approval, a.disb);
 
   document.getElementById('funnel-wrap').innerHTML = stages.map((s,i) => {
     const w = (s.count / max) * 100;
@@ -998,16 +1008,17 @@ function renderRSMSummary(rows) {
   document.getElementById('rsm-cnt').textContent = groups.length + ' RSMs';
 
   if (groups.length === 0) {
-    document.getElementById('rsm-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No RSM data — check column mapping</td></tr>`;
+    document.getElementById('rsm-bd').innerHTML = `<tr><td colspan="14" style="text-align:center;color:#94a3b8;padding:24px">No RSM data — check column mapping</td></tr>`;
     return;
   }
 
   // Totals row
   const tot = groups.reduce((s,g) => ({
     smCount: s.smCount + g.smCount, fosCount: s.fosCount + g.fosCount,
-    dealers: s.dealers + g.dealers, lead: s.lead + g.lead,
+    dealers: s.dealers + g.dealers,
+    visit: s.visit + g.visit, lead: s.lead + g.lead,
     login: s.login + g.login, approval: s.approval + g.approval, disb: s.disb + g.disb
-  }), {smCount:0,fosCount:0,dealers:0,lead:0,login:0,approval:0,disb:0});
+  }), {smCount:0,fosCount:0,dealers:0,visit:0,lead:0,login:0,approval:0,disb:0});
 
   const rowHTML = (g, isTotal=false) => `
     <tr style="${isTotal?'background:#f1f5f9;font-weight:700;border-top:2px solid #cbd5e1':''}">
@@ -1015,14 +1026,16 @@ function renderRSMSummary(rows) {
       <td class="num">${g.smCount}</td>
       <td class="num">${g.fosCount}</td>
       <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb" style="background:#fef2f2;color:#dc2626">${fmt(g.visit)}</span></td>
       <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
-      <td class="num"><span class="vb vh" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
+      <td class="num"><span class="vb" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
       <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
       <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.lead, g.visit)}</td>
       <td class="num">${pctHTML(g.login, g.lead)}</td>
       <td class="num">${pctHTML(g.approval, g.login)}</td>
       <td class="num">${pctHTML(g.disb, g.approval)}</td>
-      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+      <td class="num">${pctHTML(g.disb, g.visit)}</td>
     </tr>`;
 
   document.getElementById('rsm-bd').innerHTML =
@@ -1033,11 +1046,11 @@ function renderRSMSummary(rows) {
 function renderStageChart(rows) {
   const a = aggregate(rows);
   drawChart('ch-stages', 'bar', {
-    labels: ['Leads', 'Logins', 'Approvals', 'Disbursals'],
+    labels: ['Visits', 'Leads', 'Logins', 'Approvals', 'Disbursals'],
     datasets: [{
       label: 'Count',
-      data: [a.lead, a.login, a.approval, a.disb],
-      backgroundColor: ['#0891b2', '#7c3aed', '#d97706', '#16a34a'],
+      data: [a.visit, a.lead, a.login, a.approval, a.disb],
+      backgroundColor: ['#dc2626', '#0891b2', '#7c3aed', '#d97706', '#16a34a'],
       borderRadius: 6
     }]
   }, {plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}});
@@ -1074,7 +1087,7 @@ function renderRSMPage() {
   document.getElementById('rsm-pg-cnt').textContent = groups.length + ' RSMs';
 
   if (groups.length === 0) {
-    document.getElementById('rsm-pg-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
+    document.getElementById('rsm-pg-bd').innerHTML = `<tr><td colspan="14" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
     return;
   }
 
@@ -1084,14 +1097,16 @@ function renderRSMPage() {
       <td class="num">${g.smCount}</td>
       <td class="num">${g.fosCount}</td>
       <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb" style="background:#fef2f2;color:#dc2626">${fmt(g.visit)}</span></td>
       <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
       <td class="num"><span class="vb" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
       <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
       <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.lead, g.visit)}</td>
       <td class="num">${pctHTML(g.login, g.lead)}</td>
       <td class="num">${pctHTML(g.approval, g.login)}</td>
       <td class="num">${pctHTML(g.disb, g.approval)}</td>
-      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+      <td class="num">${pctHTML(g.disb, g.visit)}</td>
     </tr>`).join('');
 }
 
@@ -1120,7 +1135,7 @@ function renderSMPage() {
   document.getElementById('sm-pg-cnt').textContent = groups.length + ' SMs';
 
   if (groups.length === 0) {
-    document.getElementById('sm-pg-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
+    document.getElementById('sm-pg-bd').innerHTML = `<tr><td colspan="14" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
     return;
   }
 
@@ -1130,14 +1145,16 @@ function renderSMPage() {
       <td style="color:#64748b;font-size:11px">${escapeHTML(g.rsm)}</td>
       <td class="num">${g.fosCount}</td>
       <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb" style="background:#fef2f2;color:#dc2626">${fmt(g.visit)}</span></td>
       <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
       <td class="num"><span class="vb" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
       <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
       <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.lead, g.visit)}</td>
       <td class="num">${pctHTML(g.login, g.lead)}</td>
       <td class="num">${pctHTML(g.approval, g.login)}</td>
       <td class="num">${pctHTML(g.disb, g.approval)}</td>
-      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+      <td class="num">${pctHTML(g.disb, g.visit)}</td>
     </tr>`).join('');
 }
 
@@ -1172,7 +1189,7 @@ function renderFOSPage() {
   document.getElementById('fos-pg-cnt').textContent = groups.length + ' FOS';
 
   if (groups.length === 0) {
-    document.getElementById('fos-pg-bd').innerHTML = `<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
+    document.getElementById('fos-pg-bd').innerHTML = `<tr><td colspan="14" style="text-align:center;color:#94a3b8;padding:24px">No data</td></tr>`;
     return;
   }
 
@@ -1182,14 +1199,16 @@ function renderFOSPage() {
       <td style="color:#64748b;font-size:11px">${escapeHTML(g.sm)}</td>
       <td style="color:#64748b;font-size:11px">${escapeHTML(g.rsm)}</td>
       <td class="num">${fmt(g.dealers)}</td>
+      <td class="num"><span class="vb" style="background:#fef2f2;color:#dc2626">${fmt(g.visit)}</span></td>
       <td class="num"><span class="vb vh">${fmt(g.lead)}</span></td>
       <td class="num"><span class="vb" style="background:#f5f3ff;color:#6d28d9">${fmt(g.login)}</span></td>
       <td class="num"><span class="vb vm">${fmt(g.approval)}</span></td>
       <td class="num"><span class="vb vg">${fmt(g.disb)}</span></td>
+      <td class="num">${pctHTML(g.lead, g.visit)}</td>
       <td class="num">${pctHTML(g.login, g.lead)}</td>
       <td class="num">${pctHTML(g.approval, g.login)}</td>
       <td class="num">${pctHTML(g.disb, g.approval)}</td>
-      <td class="num">${pctHTML(g.disb, g.lead)}</td>
+      <td class="num">${pctHTML(g.disb, g.visit)}</td>
     </tr>`).join('');
 }
 
@@ -1208,10 +1227,12 @@ function renderDealerPage() {
 
   if (stage) {
     const stageFilter = {
+      'visit':           d => (d.visit||0) > 0,
       'lead':            d => d.lead > 0,
       'login':           d => d.login > 0,
       'approval':        d => d.approval > 0,
       'disb':            d => d.disb > 0,
+      'dropoff_lead':    d => (d.visit||0) > 0 && d.lead === 0,
       'dropoff_login':   d => d.lead > 0 && d.login === 0,
       'dropoff_approval':d => d.login > 0 && d.approval === 0,
       'dropoff_disb':    d => d.approval > 0 && d.disb === 0,
@@ -1222,10 +1243,11 @@ function renderDealerPage() {
   document.getElementById('dlr-pg-cnt').textContent = rows.length + ' dealers';
 
   const stageOf = d => {
-    if (d.disb > 0)     return {label:'✅ Disbursed',   cls:'p-hi'};
-    if (d.approval > 0) return {label:'⏳ Approved',    cls:'p-md'};
-    if (d.login > 0)    return {label:'🔵 Logged In',   cls:'p-md'};
-    if (d.lead > 0)     return {label:'📋 Lead Only',   cls:'p-lo'};
+    if (d.disb > 0)        return {label:'✅ Disbursed',     cls:'p-hi'};
+    if (d.approval > 0)    return {label:'⏳ Approved',      cls:'p-md'};
+    if (d.login > 0)       return {label:'🔵 Logged In',     cls:'p-md'};
+    if (d.lead > 0)        return {label:'📋 Lead Only',     cls:'p-lo'};
+    if ((d.visit||0) > 0)  return {label:'🚗 Visit Only',    cls:'p-lo'};
     return {label:'⚫ No Activity', cls:'p-no'};
   };
   const flag = v => v > 0
@@ -1233,7 +1255,7 @@ function renderDealerPage() {
     : `<span class="pct p-no">—</span>`;
 
   if (rows.length === 0) {
-    document.getElementById('dlr-pg-bd').innerHTML = `<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:24px">No dealers match these filters</td></tr>`;
+    document.getElementById('dlr-pg-bd').innerHTML = `<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:24px">No dealers match these filters</td></tr>`;
     return;
   }
 
@@ -1249,13 +1271,14 @@ function renderDealerPage() {
       <td style="font-size:11px;color:#475569">${escapeHTML(d.fos)}</td>
       <td style="font-size:11px;color:#64748b">${escapeHTML(d.sm)}</td>
       <td style="font-size:11px;color:#64748b">${escapeHTML(d.rsm)}</td>
+      <td class="num">${flag(d.visit||0)}</td>
       <td class="num">${flag(d.lead)}</td>
       <td class="num">${flag(d.login)}</td>
       <td class="num">${flag(d.approval)}</td>
       <td class="num">${flag(d.disb)}</td>
       <td><span class="pct ${st.cls}">${st.label}</span></td>
     </tr>`;
-  }).join('') + (rows.length > 500 ? `<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:14px;font-style:italic">Showing first 500 of ${rows.length} rows — use filters to narrow</td></tr>` : '');
+  }).join('') + (rows.length > 500 ? `<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:14px;font-style:italic">Showing first 500 of ${rows.length} rows — use filters to narrow</td></tr>` : '');
 }
 
 // ═══ CHART HELPER ═══
@@ -1390,6 +1413,7 @@ function renderDiagnostics() {
     {key:'fos',        label:'👤 FOS',          required:true},
     {key:'dealerName', label:'🚗 Dealer Name',  required:false},
     {key:'dealerCode', label:'🔢 Dealer Code',  required:false},
+    {key:'visit',      label:'🚗 Visit',        required:true},
     {key:'lead',       label:'📋 Lead',         required:true},
     {key:'login',      label:'🔵 Login',        required:true},
     {key:'approval',   label:'⏳ Approval',     required:true},
@@ -1425,7 +1449,7 @@ function renderDiagnostics() {
   // ─── Sample rows
   const sampleBody = document.getElementById('diag-sample-bd');
   if (DATA.length === 0) {
-    sampleBody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:20px">No data rows parsed yet</td></tr>`;
+    sampleBody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#94a3b8;padding:20px">No data rows parsed yet</td></tr>`;
   } else {
     sampleBody.innerHTML = DATA.slice(0, 5).map((d, i) => `
       <tr>
@@ -1435,6 +1459,7 @@ function renderDiagnostics() {
         <td style="font-size:11px">${escapeHTML(d.rsm || '—')}</td>
         <td style="font-size:11px">${escapeHTML(d.sm || '—')}</td>
         <td style="font-size:11px">${escapeHTML(d.fos || '—')}</td>
+        <td class="num">${d.visit||0}</td>
         <td class="num">${d.lead}</td>
         <td class="num">${d.login}</td>
         <td class="num">${d.approval}</td>
@@ -1456,10 +1481,11 @@ function renderDiagnostics() {
       ['Unique RSMs',        uniqRSM,   ''],
       ['Unique SMs',         uniqSM,    ''],
       ['Unique FOS',         uniqFOS,   ''],
-      ['Sum of Leads',       a.lead,    'Funnel stage 1'],
-      ['Sum of Logins',      a.login,   'Funnel stage 2'],
-      ['Sum of Approvals',   a.approval,'Funnel stage 3'],
-      ['Sum of Disbursals',  a.disb,    'Funnel stage 4'],
+      ['Sum of Visits',      a.visit,   'Funnel stage 1'],
+      ['Sum of Leads',       a.lead,    'Funnel stage 2'],
+      ['Sum of Logins',      a.login,   'Funnel stage 3'],
+      ['Sum of Approvals',   a.approval,'Funnel stage 4'],
+      ['Sum of Disbursals',  a.disb,    'Funnel stage 5'],
     ];
     totalsBody.innerHTML = rows.map(([m,v,n]) => `
       <tr>
@@ -1562,14 +1588,15 @@ function processCSVText(text, source) {
     const login = toCount(get(COL_MAP.login));
     const approval = toCount(get(COL_MAP.approval));
     const disb = toCount(get(COL_MAP.disbursal));
+    const visit = toCount(get(COL_MAP.visit));
     if (!get(COL_MAP.rsm) && !get(COL_MAP.sm) && !get(COL_MAP.fos)
         && !get(COL_MAP.dealerName) && !get(COL_MAP.dealerCode)
-        && lead + login + approval + disb === 0) continue;
+        && visit + lead + login + approval + disb === 0) continue;
     out.push({
       rsm: get(COL_MAP.rsm), sm: get(COL_MAP.sm), fos: get(COL_MAP.fos),
       dealerName: get(COL_MAP.dealerName), dealerCode: get(COL_MAP.dealerCode),
       channel: get(COL_MAP.channel), city: get(COL_MAP.city),
-      lead, login, approval, disb,
+      visit, lead, login, approval, disb,
       amount: parseFloat(get(COL_MAP.amount).replace(/[,₹\s]/g, '')) || 0
     });
   }
