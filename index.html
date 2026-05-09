@@ -545,12 +545,44 @@ let SHEET_URL = (typeof localStorage !== 'undefined' && localStorage.getItem('re
 let DATA_SOURCE_MODE = 'auto';  // 'auto' | 'manual' (after CSV upload)
 
 // CORS proxies — used as fallback if direct fetch is blocked (CARS24 / corp network).
-// Tried in order; first success wins.
+// Tried in order; first response that PASSES content validation wins.
+// Order matters: allorigins is the most reliable for Google Sheets.
+// codetabs has been REMOVED — it returns Google's sign-in page JS, not the CSV.
 const CORS_PROXIES = [
-  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,  // wraps response in JSON; needs unwrap
 ];
+
+// Validate that a fetched response actually looks like THIS sheet's CSV.
+// Defends against proxies that return HTTP 200 with garbage content
+// (e.g. sign-in pages, JS bundles, error HTML).
+function validateSheetCSV(text) {
+  if (!text || typeof text !== 'string') return 'empty response';
+  if (text.length < 100) return 'response too short (' + text.length + ' bytes)';
+  if (text.trim().startsWith('<')) return 'response is HTML, not CSV';
+  if (text.trim().startsWith('{') && !text.includes('"contents"')) return 'response is JSON, not CSV';
+  if (/^\s*function\s*\(/.test(text) || /<script/i.test(text.slice(0, 500))) return 'response contains JavaScript code, not CSV';
+
+  // Must contain the expected sheet markers somewhere in first 5KB
+  const head = text.slice(0, 5000).toLowerCase();
+  const markers = ['rsm', 'fos', 'dealer', 'lead', 'login'];
+  const hits = markers.filter(m => head.includes(m)).length;
+  if (hits < 3) return 'missing expected sheet markers (found ' + hits + '/5: RSM/FOS/Dealer/Lead/Login)';
+
+  return null;  // ✓ valid
+}
+
+// Allorigins /get endpoint wraps response: {contents: "...", status: {...}}
+// Unwrap if present. Other proxies return raw text.
+function unwrapProxyResponse(text) {
+  if (!text || !text.trim().startsWith('{')) return text;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.contents === 'string') return parsed.contents;
+  } catch(e) {}
+  return text;
+}
 
 let DATA = [];          // cleaned rows (one object per dealer)
 let HEADERS = [];       // raw header row
@@ -713,8 +745,28 @@ async function loadData() {
         lastErr = new Error('HTTP ' + res.status);
         continue;
       }
-      text = await res.text();
-      DIAG.attempts.push({label: att.label, ok: true, status: res.status, ms: Math.round(performance.now() - tStart), bytes: text.length});
+      let raw = await res.text();
+      // Some proxies (e.g. allorigins /get) wrap response in JSON — unwrap if needed
+      const candidate = isAppsScript ? raw : unwrapProxyResponse(raw);
+
+      // CONTENT VALIDATION — reject proxies that returned 200 OK but garbage
+      // (sign-in pages, error JS, partial data). Only skip validation for Apps Script
+      // since that returns JSON, not CSV.
+      if (!isAppsScript) {
+        const validationErr = validateSheetCSV(candidate);
+        if (validationErr) {
+          DIAG.attempts.push({
+            label: att.label, ok: false, status: res.status,
+            ms: Math.round(performance.now() - tStart),
+            error: 'Validation failed: ' + validationErr + ' (returned ' + raw.length + ' bytes)'
+          });
+          lastErr = new Error('Bad content: ' + validationErr);
+          continue;  // Try next proxy
+        }
+      }
+
+      text = candidate;
+      DIAG.attempts.push({label: att.label, ok: true, status: res.status, ms: Math.round(performance.now() - tStart), bytes: text.length, validated: !isAppsScript});
       DIAG.fetchPath = att.label;
       DIAG.httpStatus = res.status;
       DIAG.httpStatusText = res.statusText;
@@ -734,7 +786,7 @@ async function loadData() {
       ? 'Browser blocked the fetch (file:// protocol). All proxy fallbacks also failed. Fix: serve via local web server (python -m http.server 8000) or host on GitHub Pages.'
       : isAppsScript
         ? 'Apps Script fetch failed: ' + (lastErr ? lastErr.message : 'unknown') + '. Check that the Web App is deployed with "Anyone" access and the URL ends in /exec.'
-        : 'All ' + attempts.length + ' fetch attempts failed (1 direct + ' + CORS_PROXIES.length + ' proxies). Last error: ' + (lastErr ? lastErr.message : 'unknown') + '. Either Google Sheets is rejecting the publish URL or your network is blocking docs.google.com AND the proxy services. See "Bulletproof Fallback" section above for guaranteed alternatives.';
+        : 'All ' + attempts.length + ' fetch attempts failed (1 direct + ' + CORS_PROXIES.length + ' proxies). Last error: ' + (lastErr ? lastErr.message : 'unknown') + '. Note: some proxies may have returned data that failed content validation (proxies sometimes serve sign-in pages or unrelated content). See attempt log below — and use the "Bulletproof Fallback" card above (Apps Script or manual upload) which never fails.';
     renderDiagnostics();
     throw new Error(DIAG.fetchError);
   }
