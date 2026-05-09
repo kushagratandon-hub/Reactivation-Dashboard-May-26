@@ -362,6 +362,68 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- ════ BULLETPROOF FALLBACK: Manual CSV Upload + Apps Script ════ -->
+  <div class="card" style="border:2px solid #16a34a">
+    <div class="ch" style="background:#f0fdf4">
+      <span class="ct" style="color:#166534">🛡️ Bulletproof Fallback — If Live Fetch Keeps Failing</span>
+      <span class="bdg bdg-g">Always works</span>
+    </div>
+    <div class="cb">
+      <div style="font-size:12px;color:#475569;line-height:1.6;margin-bottom:14px">
+        Public CORS proxies get rate-limited and Google Workspace can restrict published URLs. If live fetch fails, use one of these two reliable options instead:
+      </div>
+
+      <!-- OPTION A: Manual CSV upload -->
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:12px;background:#fafbfc">
+        <div style="font-weight:700;color:#1e293b;margin-bottom:6px;font-size:13px">📁 Option A — Upload CSV file (instant, works offline)</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:10px">Download CSV from Google Sheets (File → Download → CSV) and drop it here. Dashboard parses it locally — no internet needed.</div>
+        <input type="file" id="manual-csv" accept=".csv,text/csv" onchange="handleManualUpload(event)" style="display:block;margin-bottom:8px">
+        <div id="manual-csv-status" style="font-size:11px;color:#64748b"></div>
+      </div>
+
+      <!-- OPTION B: Apps Script -->
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:14px;background:#fafbfc">
+        <div style="font-weight:700;color:#1e293b;margin-bottom:6px;font-size:13px">🚀 Option B — Google Apps Script (3-min setup, then live forever)</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:10px">Apps Script Web Apps bypass all CORS issues because Google explicitly allows them. Setup once, works forever.</div>
+
+        <details style="margin-bottom:10px">
+          <summary style="cursor:pointer;font-weight:600;color:#1e40af;font-size:12px;padding:6px 0">📋 Show step-by-step setup (click to expand)</summary>
+          <ol style="margin:10px 0 6px 22px;font-size:11px;color:#475569;line-height:1.85">
+            <li>Open your reactivation Google Sheet</li>
+            <li>Click <b>Extensions → Apps Script</b></li>
+            <li>Delete any code in the editor, paste this:
+              <div style="position:relative;margin-top:6px">
+                <pre id="apps-script-code" style="background:#0f172a;color:#86efac;padding:12px;border-radius:6px;font-family:'SF Mono',Menlo,monospace;font-size:10px;line-height:1.5;overflow-x:auto;white-space:pre-wrap;margin:0">function doGet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('May 26 Reactivation Dealers List')
+              || ss.getActiveSheet();
+  const data = sheet.getDataRange().getValues();
+  return ContentService
+    .createTextOutput(JSON.stringify({rows: data, updatedAt: new Date().toISOString()}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('apps-script-code').textContent)" style="position:absolute;top:6px;right:6px;background:#1e40af;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;font-family:Inter">📋 Copy</button>
+              </div>
+            </li>
+            <li>Click <b>Save</b> (disk icon) — name the project anything</li>
+            <li>Click <b>Deploy → New deployment</b></li>
+            <li>Click the gear ⚙️ next to "Select type" → choose <b>Web app</b></li>
+            <li>Settings: <b>Execute as: Me</b> · <b>Who has access: Anyone</b></li>
+            <li>Click <b>Deploy</b> → authorize when prompted (allow access)</li>
+            <li>Copy the <b>Web app URL</b> (looks like <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:10px">https://script.google.com/macros/s/AKfycb.../exec</code>)</li>
+            <li>Paste it in the box below ↓</li>
+          </ol>
+        </details>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input type="text" id="apps-script-url" placeholder="Paste Apps Script Web App URL here..." style="flex:1;font-size:11px;padding:7px 10px">
+          <button class="btn-ref" onclick="useAppsScriptUrl()">✓ Use This URL</button>
+        </div>
+        <div id="apps-script-status" style="font-size:11px;color:#64748b"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats summary -->
   <div class="g4" style="grid-template-columns:repeat(4,1fr)">
     <div class="kpi t"><div class="kl">HTTP Status</div><div class="kv" id="diag-http">—</div><div class="ks" id="diag-http-sub">Last fetch</div></div>
@@ -465,7 +527,11 @@ tr:last-child td{border-bottom:none}
 // ════════════════════════════════════════════════════════════════
 // LIVE DATA SOURCE — Reactivation Sheet (publish to web as CSV)
 // ════════════════════════════════════════════════════════════════
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsiUG48q_6lCg6AEwT4A0tcAueNiJqt1EHvn3-Ax57ZDrb8QOojjAM2R0aQ0IUxtxiNH8bduB0UT7z/pub?gid=1624611570&single=true&output=csv";
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsiUG48q_6lCg6AEwT4A0tcAueNiJqt1EHvn3-Ax57ZDrb8QOojjAM2R0aQ0IUxtxiNH8bduB0UT7z/pub?gid=1624611570&single=true&output=csv";
+
+// User can override with Apps Script URL — saved in localStorage so it persists across reloads
+let SHEET_URL = (typeof localStorage !== 'undefined' && localStorage.getItem('react_sheet_url')) || DEFAULT_SHEET_URL;
+let DATA_SOURCE_MODE = 'auto';  // 'auto' | 'manual' (after CSV upload)
 
 // CORS proxies — used as fallback if direct fetch is blocked (CARS24 / corp network).
 // Tried in order; first success wins.
@@ -611,7 +677,9 @@ function toCount(v) {
 // LOAD DATA from sheet → build DATA[] array
 // ════════════════════════════════════════════════════════════════
 async function loadData() {
-  const baseUrl = SHEET_URL + "&t=" + Date.now();
+  // Apps Script URLs don't need cache-buster; CSV publish URLs do
+  const isAppsScript = SHEET_URL.includes('script.google.com/macros');
+  const baseUrl = isAppsScript ? SHEET_URL : (SHEET_URL + "&t=" + Date.now());
   const t0 = performance.now();
   DIAG = {
     url: baseUrl, fetchedAt: new Date(), httpStatus: null, httpStatusText: null,
@@ -619,11 +687,15 @@ async function loadData() {
     fetchError: null, fetchMs: null, fetchPath: null, attempts: []
   };
 
-  // Build attempt list: direct first, then each proxy
-  const attempts = [
-    {label: 'direct',                  url: baseUrl},
-    ...CORS_PROXIES.map((mk, i) => ({label: 'proxy#' + (i + 1) + ': ' + mk(baseUrl).split('/')[2], url: mk(baseUrl)}))
-  ];
+  // Build attempt list:
+  // - Apps Script URLs: direct only (Google blesses CORS, no proxy needed)
+  // - Publish CSV URLs: direct + all proxies
+  const attempts = isAppsScript
+    ? [{label: 'apps-script (direct)', url: baseUrl}]
+    : [
+        {label: 'direct', url: baseUrl},
+        ...CORS_PROXIES.map((mk, i) => ({label: 'proxy#' + (i + 1) + ': ' + mk(baseUrl).split('/')[2], url: mk(baseUrl)}))
+      ];
 
   let res = null, text = null, lastErr = null;
   for (const att of attempts) {
@@ -654,14 +726,36 @@ async function loadData() {
     const isFileProto = location.protocol === 'file:';
     DIAG.fetchError = isFileProto
       ? 'Browser blocked the fetch (file:// protocol). All proxy fallbacks also failed. Fix: serve via local web server (python -m http.server 8000) or host on GitHub Pages.'
-      : 'All ' + attempts.length + ' fetch attempts failed (1 direct + ' + CORS_PROXIES.length + ' proxies). Last error: ' + (lastErr ? lastErr.message : 'unknown') + '. Either Google Sheets is rejecting the publish URL or your network is blocking docs.google.com AND the proxy services. See attempt log in Diagnostics → Raw section.';
+      : isAppsScript
+        ? 'Apps Script fetch failed: ' + (lastErr ? lastErr.message : 'unknown') + '. Check that the Web App is deployed with "Anyone" access and the URL ends in /exec.'
+        : 'All ' + attempts.length + ' fetch attempts failed (1 direct + ' + CORS_PROXIES.length + ' proxies). Last error: ' + (lastErr ? lastErr.message : 'unknown') + '. Either Google Sheets is rejecting the publish URL or your network is blocking docs.google.com AND the proxy services. See "Bulletproof Fallback" section above for guaranteed alternatives.';
     renderDiagnostics();
     throw new Error(DIAG.fetchError);
   }
 
   DIAG.rawText = text;
   DIAG.bytes = text.length;
-  const rows = parseCSV(text);
+
+  // If Apps Script, response is JSON {rows: [[...], [...]]} — convert to CSV-compatible array-of-arrays
+  let rows;
+  if (isAppsScript) {
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && Array.isArray(parsed.rows)) {
+        rows = parsed.rows.map(r => r.map(c => c == null ? '' : String(c)));
+      } else if (Array.isArray(parsed)) {
+        rows = parsed.map(r => r.map(c => c == null ? '' : String(c)));
+      } else {
+        throw new Error('Apps Script response missing "rows" array');
+      }
+    } catch (e) {
+      DIAG.fetchError = 'Apps Script response is not valid JSON: ' + e.message + '. Check your script — it should return ContentService.createTextOutput(JSON.stringify({rows: data})).';
+      renderDiagnostics();
+      throw new Error(DIAG.fetchError);
+    }
+  } else {
+    rows = parseCSV(text);
+  }
   DIAG.rowsParsed = rows.length;
 
   if (rows.length < 2) {
@@ -1405,6 +1499,116 @@ function renderDiagnostics() {
   } else {
     rawEl.textContent = '— No response captured —';
   }
+}
+
+// ════════════════════════════════════════════════════════════════
+// MANUAL CSV UPLOAD — works offline, never fails
+// ════════════════════════════════════════════════════════════════
+function handleManualUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('manual-csv-status');
+  status.innerHTML = `<span style="color:#1e40af">⏳ Reading ${escapeHTML(file.name)}...</span>`;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target.result;
+      processCSVText(text, 'manual upload: ' + file.name);
+      status.innerHTML = `<span style="color:#16a34a">✅ Loaded ${DATA.length.toLocaleString()} dealers from ${escapeHTML(file.name)}</span>`;
+    } catch (err) {
+      status.innerHTML = `<span style="color:#dc2626">❌ Failed to parse: ${escapeHTML(err.message)}</span>`;
+    }
+  };
+  reader.onerror = () => {
+    status.innerHTML = `<span style="color:#dc2626">❌ Could not read file</span>`;
+  };
+  reader.readAsText(file);
+}
+
+// Shared CSV-text → dashboard pipeline (used by both fetch and manual upload)
+function processCSVText(text, source) {
+  DATA_SOURCE_MODE = 'manual';
+  DIAG = {
+    url: source, fetchedAt: new Date(), httpStatus: 200, httpStatusText: 'OK (manual)',
+    bytes: text.length, rawText: text, rowsParsed: null, dataRows: null,
+    fetchError: null, fetchMs: 0, fetchPath: 'manual upload', attempts: [{label: 'manual upload', ok: true, status: 200, ms: 0, bytes: text.length}]
+  };
+
+  const rows = parseCSV(text);
+  DIAG.rowsParsed = rows.length;
+  if (rows.length < 2) throw new Error("CSV has no data rows");
+
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    if (/\b(rsm|sm|fos)\b/.test(rows[i].join('|').toLowerCase())) { headerIdx = i; break; }
+  }
+  HEADERS = rows[headerIdx];
+  COL_MAP = detectColumns(HEADERS);
+
+  let firstDataIdx = headerIdx + 1;
+  while (firstDataIdx < rows.length) {
+    const r = rows[firstDataIdx];
+    const get = idx => idx >= 0 ? (r[idx] || "").trim() : "";
+    if (get(COL_MAP.rsm) || get(COL_MAP.sm) || get(COL_MAP.fos)
+        || get(COL_MAP.dealerName) || get(COL_MAP.dealerCode)) break;
+    firstDataIdx++;
+  }
+
+  const out = [];
+  for (let i = firstDataIdx; i < rows.length; i++) {
+    const r = rows[i];
+    const get = idx => idx >= 0 ? (r[idx] || "").trim() : "";
+    const lead = toCount(get(COL_MAP.lead));
+    const login = toCount(get(COL_MAP.login));
+    const approval = toCount(get(COL_MAP.approval));
+    const disb = toCount(get(COL_MAP.disbursal));
+    if (!get(COL_MAP.rsm) && !get(COL_MAP.sm) && !get(COL_MAP.fos)
+        && !get(COL_MAP.dealerName) && !get(COL_MAP.dealerCode)
+        && lead + login + approval + disb === 0) continue;
+    out.push({
+      rsm: get(COL_MAP.rsm), sm: get(COL_MAP.sm), fos: get(COL_MAP.fos),
+      dealerName: get(COL_MAP.dealerName), dealerCode: get(COL_MAP.dealerCode),
+      channel: get(COL_MAP.channel), city: get(COL_MAP.city),
+      lead, login, approval, disb,
+      amount: parseFloat(get(COL_MAP.amount).replace(/[,₹\s]/g, '')) || 0
+    });
+  }
+  DATA = out;
+  DIAG.dataRows = out.length;
+
+  document.getElementById('sync-txt').textContent = 'Loaded from ' + source;
+  document.getElementById('error-box').innerHTML = buildColumnWarning();
+  setupFilters();
+  renderAll();
+  renderDiagnostics();
+}
+
+// ════════════════════════════════════════════════════════════════
+// APPS SCRIPT URL — most reliable live option (Google-blessed, no CORS)
+// ════════════════════════════════════════════════════════════════
+function useAppsScriptUrl() {
+  const input = document.getElementById('apps-script-url');
+  const status = document.getElementById('apps-script-status');
+  const url = input.value.trim();
+  if (!url) {
+    status.innerHTML = `<span style="color:#dc2626">❌ Paste a URL first</span>`;
+    return;
+  }
+  if (!url.includes('script.google.com/macros') || !url.endsWith('/exec')) {
+    status.innerHTML = `<span style="color:#dc2626">❌ That doesn't look like an Apps Script Web App URL — should end in <code>/exec</code></span>`;
+    return;
+  }
+  // Save and reload
+  try { localStorage.setItem('react_sheet_url', url); } catch(e) {}
+  SHEET_URL = url;
+  status.innerHTML = `<span style="color:#16a34a">✅ Saved! Loading data via Apps Script...</span>`;
+  setTimeout(() => refreshData(), 300);
+}
+
+function clearAppsScriptUrl() {
+  try { localStorage.removeItem('react_sheet_url'); } catch(e) {}
+  SHEET_URL = DEFAULT_SHEET_URL;
+  location.reload();
 }
 
 function showTab(name, el) {
