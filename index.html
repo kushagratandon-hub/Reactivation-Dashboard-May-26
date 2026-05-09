@@ -431,6 +431,26 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- Fetch attempts log -->
+  <div class="card">
+    <div class="ch"><span class="ct">🔁 Fetch Attempts (Direct + Proxy Fallbacks)</span><span class="bdg bdg-b" id="diag-attempts-cnt">—</span></div>
+    <div class="cb">
+      <div style="font-size:11px;color:#64748b;margin-bottom:8px">Dashboard tries direct fetch first, then falls back to CORS proxies if direct is blocked. First success wins.</div>
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th style="width:60px">#</th>
+            <th>Path</th>
+            <th class="num" style="width:90px">Time</th>
+            <th class="num" style="width:90px">Status</th>
+            <th>Result</th>
+          </tr></thead>
+          <tbody id="diag-attempts-bd"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- Raw response peek -->
   <div class="card">
     <div class="ch"><span class="ct">📄 Raw CSV Response (First 1500 chars)</span><span class="bdg bdg-b">Debug</span></div>
@@ -445,7 +465,16 @@ tr:last-child td{border-bottom:none}
 // ════════════════════════════════════════════════════════════════
 // LIVE DATA SOURCE — Reactivation Sheet (publish to web as CSV)
 // ════════════════════════════════════════════════════════════════
-const SHEET_URL = "https://corsproxy.io/?https://docs.google.com/spreadsheets/d/e/2PACX-1vTsiUG48q_6lCg6AEwT4A0tcAueNiJqt1EHvn3-Ax57ZDrb8QOojjAM2R0aQ0IUxtxiNH8bduB0UT7z/pub?gid=1624611570&single=true&output=csv";
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsiUG48q_6lCg6AEwT4A0tcAueNiJqt1EHvn3-Ax57ZDrb8QOojjAM2R0aQ0IUxtxiNH8bduB0UT7z/pub?gid=1624611570&single=true&output=csv";
+
+// CORS proxies — used as fallback if direct fetch is blocked (CARS24 / corp network).
+// Tried in order; first success wins.
+const CORS_PROXIES = [
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
 let DATA = [];          // cleaned rows (one object per dealer)
 let HEADERS = [];       // raw header row
 let COL_MAP = {};       // resolved column indices
@@ -454,6 +483,7 @@ let charts = {};
 // Diagnostics state — captured on each fetch for the Diagnostics tab
 let DIAG = {
   url: null,
+  fetchPath: null,        // 'direct' | 'proxy:corsproxy.io' | 'proxy:allorigins' | etc
   httpStatus: null,
   httpStatusText: null,
   bytes: null,
@@ -462,7 +492,8 @@ let DIAG = {
   dataRows: null,
   fetchedAt: null,
   fetchError: null,
-  fetchMs: null
+  fetchMs: null,
+  attempts: []            // log of every attempt made
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -580,35 +611,54 @@ function toCount(v) {
 // LOAD DATA from sheet → build DATA[] array
 // ════════════════════════════════════════════════════════════════
 async function loadData() {
-  const fullUrl = SHEET_URL + "&t=" + Date.now();
+  const baseUrl = SHEET_URL + "&t=" + Date.now();
   const t0 = performance.now();
-  DIAG = {url: fullUrl, fetchedAt: new Date(), httpStatus: null, httpStatusText: null,
-          bytes: null, rawText: null, rowsParsed: null, dataRows: null, fetchError: null, fetchMs: null};
+  DIAG = {
+    url: baseUrl, fetchedAt: new Date(), httpStatus: null, httpStatusText: null,
+    bytes: null, rawText: null, rowsParsed: null, dataRows: null,
+    fetchError: null, fetchMs: null, fetchPath: null, attempts: []
+  };
 
-  let res;
-  try {
-    res = await fetch(fullUrl);
-  } catch (e) {
+  // Build attempt list: direct first, then each proxy
+  const attempts = [
+    {label: 'direct',                  url: baseUrl},
+    ...CORS_PROXIES.map((mk, i) => ({label: 'proxy#' + (i + 1) + ': ' + mk(baseUrl).split('/')[2], url: mk(baseUrl)}))
+  ];
+
+  let res = null, text = null, lastErr = null;
+  for (const att of attempts) {
+    const tStart = performance.now();
+    try {
+      res = await fetch(att.url);
+      if (!res.ok) {
+        DIAG.attempts.push({label: att.label, ok: false, status: res.status, ms: Math.round(performance.now() - tStart), error: 'HTTP ' + res.status + ' ' + res.statusText});
+        lastErr = new Error('HTTP ' + res.status);
+        continue;
+      }
+      text = await res.text();
+      DIAG.attempts.push({label: att.label, ok: true, status: res.status, ms: Math.round(performance.now() - tStart), bytes: text.length});
+      DIAG.fetchPath = att.label;
+      DIAG.httpStatus = res.status;
+      DIAG.httpStatusText = res.statusText;
+      break;  // SUCCESS — stop trying further proxies
+    } catch (e) {
+      DIAG.attempts.push({label: att.label, ok: false, status: null, ms: Math.round(performance.now() - tStart), error: e.message});
+      lastErr = e;
+    }
+  }
+
+  DIAG.fetchMs = Math.round(performance.now() - t0);
+
+  // All attempts failed
+  if (text == null) {
     const isFileProto = location.protocol === 'file:';
     DIAG.fetchError = isFileProto
-      ? 'Browser blocked the fetch because this HTML file is opened directly from disk (file:// protocol). The CSV URL works in your browser address bar but fetch() is restricted on local files. Fix: serve this file from a local web server or host it on GitHub Pages — see Diagnostics tab for instructions.'
-      : 'Network error: ' + e.message + '. Most likely a CORS / proxy / firewall block. If this just published, also wait 60 seconds for Google Sheets to propagate.';
-    DIAG.fetchMs = Math.round(performance.now() - t0);
+      ? 'Browser blocked the fetch (file:// protocol). All proxy fallbacks also failed. Fix: serve via local web server (python -m http.server 8000) or host on GitHub Pages.'
+      : 'All ' + attempts.length + ' fetch attempts failed (1 direct + ' + CORS_PROXIES.length + ' proxies). Last error: ' + (lastErr ? lastErr.message : 'unknown') + '. Either Google Sheets is rejecting the publish URL or your network is blocking docs.google.com AND the proxy services. See attempt log in Diagnostics → Raw section.';
     renderDiagnostics();
     throw new Error(DIAG.fetchError);
   }
 
-  DIAG.httpStatus = res.status;
-  DIAG.httpStatusText = res.statusText;
-  DIAG.fetchMs = Math.round(performance.now() - t0);
-
-  if (!res.ok) {
-    DIAG.fetchError = `HTTP ${res.status} ${res.statusText} — sheet not publicly accessible as CSV. Change publish format from PDF to CSV.`;
-    renderDiagnostics();
-    throw new Error("Sheet HTTP " + res.status + " — make sure publish format is CSV, not PDF");
-  }
-
-  const text = await res.text();
   DIAG.rawText = text;
   DIAG.bytes = text.length;
   const rows = parseCSV(text);
@@ -632,8 +682,6 @@ async function loadData() {
 
   // Skip "totals" rows just below the header — these often appear in DCF sheets
   // and contain numbers in the funnel columns but no RSM/SM/FOS/dealer info.
-  // A row is treated as totals if it has no values in RSM, SM, FOS, dealer-name,
-  // or dealer-code columns but DOES have values in the funnel numeric columns.
   let firstDataIdx = headerIdx + 1;
   while (firstDataIdx < rows.length) {
     const r = rows[firstDataIdx];
@@ -676,7 +724,8 @@ async function loadData() {
   DIAG.dataRows = out.length;
 
   const now = new Date().toLocaleTimeString('en-IN', {timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true});
-  document.getElementById('sync-txt').textContent = 'Synced ' + now;
+  const pathLabel = DIAG.fetchPath === 'direct' ? '' : ' (via ' + DIAG.fetchPath + ')';
+  document.getElementById('sync-txt').textContent = 'Synced ' + now + pathLabel;
   document.getElementById('error-box').innerHTML = buildColumnWarning();
   renderDiagnostics();
   return true;
@@ -1162,11 +1211,14 @@ function renderDiagnostics() {
   const isStale = DIAG.fetchedAt && (Date.now() - DIAG.fetchedAt.getTime()) > 6 * 60 * 1000;
 
   if (ok && !isStale) {
+    const pathBadge = DIAG.fetchPath === 'direct'
+      ? '<span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;margin-left:6px">DIRECT</span>'
+      : '<span style="background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;margin-left:6px" title="Direct fetch was blocked; using CORS proxy fallback">' + escapeHTML(DIAG.fetchPath || 'proxy') + '</span>';
     statusEl.innerHTML = `
       <div style="display:flex;align-items:center;gap:14px;padding:8px 4px">
         <div style="width:48px;height:48px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:24px">✅</div>
         <div style="flex:1">
-          <div style="font-size:15px;font-weight:700;color:#166534;margin-bottom:2px">Connected — Sheet is live</div>
+          <div style="font-size:15px;font-weight:700;color:#166534;margin-bottom:2px">Connected — Sheet is live${pathBadge}</div>
           <div style="font-size:12px;color:#475569">
             Last fetch: <b>${DIAG.fetchedAt.toLocaleString('en-IN', {timeZone:'Asia/Kolkata'})}</b> ·
             Took <b>${DIAG.fetchMs}ms</b> ·
@@ -1321,6 +1373,28 @@ function renderDiagnostics() {
         <td class="num" style="font-weight:700;color:#1e40af">${fmt(v)}</td>
         <td style="color:#94a3b8;font-size:11px">${n}</td>
       </tr>`).join('');
+  }
+
+  // ─── Fetch attempts log
+  const attemptsBody = document.getElementById('diag-attempts-bd');
+  const attemptsCnt = document.getElementById('diag-attempts-cnt');
+  if (attemptsBody) {
+    if (!DIAG.attempts || DIAG.attempts.length === 0) {
+      attemptsCnt.textContent = '—';
+      attemptsBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">No attempts yet</td></tr>`;
+    } else {
+      attemptsCnt.textContent = DIAG.attempts.length + ' attempts';
+      attemptsBody.innerHTML = DIAG.attempts.map((a, i) => `
+        <tr>
+          <td style="color:#94a3b8">${i + 1}</td>
+          <td style="font-family:monospace;font-size:11px">${escapeHTML(a.label)}</td>
+          <td class="num" style="font-size:11px">${a.ms}ms</td>
+          <td class="num">${a.status ? `<span style="font-weight:600;color:${a.status === 200 ? '#16a34a' : '#dc2626'}">${a.status}</span>` : '<span style="color:#94a3b8">—</span>'}</td>
+          <td>${a.ok
+            ? `<span class="pct p-hi">✓ ${a.bytes ? a.bytes.toLocaleString() + ' bytes' : 'OK'}</span>`
+            : `<span class="pct p-lo" style="font-size:10px">✗ ${escapeHTML(a.error || 'failed')}</span>`}</td>
+        </tr>`).join('');
+    }
   }
 
   // ─── Raw response peek
